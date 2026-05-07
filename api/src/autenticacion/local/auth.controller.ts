@@ -162,10 +162,12 @@ export class AuthController {
       throw new BadRequestException('Faltan datos');
     }
 
-    return this.servicioAuth.registro({
+    const respuesta = await this.servicioAuth.registro({
       ...datosDeUsuario,
       imagenPerfil: imagenPerfilUrl
-    })
+    });
+    console.log('Respuesta del servicio de registro:', respuesta);
+    return respuesta
   }
 
   @Post('registro-ong')
