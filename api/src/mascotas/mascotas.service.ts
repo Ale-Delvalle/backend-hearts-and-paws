@@ -1,4 +1,4 @@
-import { Injectable, Get, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, Get, NotFoundException, ForbiddenException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { CreateMascotaDto } from './dto/create-mascota.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
@@ -95,7 +95,7 @@ async CreateMascota(createMascotaDto: CreateMascotaDto, ongId: string) {
   });
 
   if (!tipoExist) {
-    throw new BadRequestException('El ripo de mascota no existe');
+    throw new BadRequestException('El tipo de mascota no existe');
   }
 
   const ongExiste = await this.prismaService.organizacion.findUnique({
@@ -142,7 +142,7 @@ async CreateMascota(createMascotaDto: CreateMascotaDto, ongId: string) {
         const res = await axios.get('https://api.sightengine.com/1.0/check.json', {
           params: {
             url: result.secure_url,
-            models: 'violence, gore',
+            models: 'violence,gore',
             api_user: process.env.SIGHTENGINE_USER,
             api_secret: process.env.SIGHTENGINE_SECRET,
           },
@@ -180,7 +180,7 @@ async CreateMascota(createMascotaDto: CreateMascotaDto, ongId: string) {
       }
 
       return imagenes;
-    } catch (error) {
+    } catch (error: any) {
       // Re-throw specific HTTP exceptions
       if (error instanceof BadRequestException || 
           error instanceof NotFoundException || 
@@ -188,8 +188,9 @@ async CreateMascota(createMascotaDto: CreateMascotaDto, ongId: string) {
         throw error;
       }
       
-      console.error('Error al subir imagen:', error);
-      throw new Error('Fallo la subida de imagen.')
+      const detallesError = error.response?.data?.error?.message || error.message || 'Error desconocido';
+      console.error('Error detallado al subir imagen:', error.response?.data || error.message || error);
+      throw new InternalServerErrorException('Fallo la subida de imagen. Detalles: ' + detallesError);
     }
 
   }
