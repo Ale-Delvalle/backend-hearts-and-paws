@@ -63,7 +63,8 @@ export class CasosService {
             },
           },
         },
-        ong: true
+        ong: true,
+        donacion: true
       },
     });
   }
