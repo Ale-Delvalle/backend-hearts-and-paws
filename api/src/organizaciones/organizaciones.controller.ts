@@ -75,6 +75,14 @@ export class OrganizacionesController {
   }
 
   
+  @Get(':id/perfil')
+  @ApiOperation({ summary: 'Obtener perfil público de una organización (nombre, foto, descripción y contadores)' })
+  @ApiParam({ name: 'id', type: 'string', description: 'UUID de la organización' })
+  @ApiResponse({ status: 200, description: 'Perfil público de la organización' })
+  async obtenerPerfilPublico(@Param('id', ParseUUIDPipe) id: string) {
+    return this.organizacionesService.obtenerPerfilPublico(id);
+  }
+
   @UseGuards(JwtAutCookiesGuardia)
   @Get('me')
   @ApiBearerAuth()

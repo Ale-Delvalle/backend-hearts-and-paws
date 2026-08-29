@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UpdateOrganizacioneDto } from './dto/update-organizacione.dto';
-import { EstadoOrganizacion } from '@prisma/client';
+import { EstadoOrganizacion, EstadoMascota } from '@prisma/client';
 import { MailerService } from 'src/shared/email/email-server.service';
 import { Response } from 'express';
 import axios from 'axios';
@@ -55,6 +55,46 @@ export class OrganizacionesService {
     return organizacion;
   }
 
+
+  async obtenerPerfilPublico(id: string){
+    const organizacion = await this.prisma.organizacion.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        nombre: true,
+        descripcion: true,
+        ciudad: true,
+        pais: true,
+        imagenPerfil: true,
+        creado_en: true,
+        estado: true,
+      },
+    });
+
+    if (!organizacion || organizacion.estado !== EstadoOrganizacion.APROBADA) {
+      throw new NotFoundException('Organización no encontrada');
+    }
+
+    const [mascotasActivas, casosPublicados] = await Promise.all([
+      this.prisma.mascota.count({
+        where: {
+          organizacionId: id,
+          estado: { in: [EstadoMascota.EN_ADOPCION, EstadoMascota.EN_TRANSITO] },
+        },
+      }),
+      this.prisma.caso.count({
+        where: { ongId: id },
+      }),
+    ]);
+
+    const { estado, ...datosPublicos } = organizacion;
+
+    return {
+      ...datosPublicos,
+      mascotasActivas,
+      casosPublicados,
+    };
+  }
 
   async listarTodas(query: any){
     const { nombre, email, ciudad, plan, creado_en} = query
