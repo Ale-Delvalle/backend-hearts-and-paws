@@ -3,6 +3,7 @@ import { MascotasService } from './mascotas.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { EstadoMascota } from '@prisma/client';
 
 describe('MascotasService', () => {
   let service: MascotasService;
@@ -31,6 +32,7 @@ describe('MascotasService', () => {
         findMany: jest.fn(),
         findUnique: jest.fn(),
         create: jest.fn(),
+        update: jest.fn(),
         count: jest.fn(),
       },
       tiposMascota: {
@@ -217,6 +219,69 @@ describe('MascotasService', () => {
 
       expect(result).toEqual({ total: 42 });
       expect(prismaService.mascota.count).toHaveBeenCalled();
+    });
+  });
+
+  describe('obtenerPerfil', () => {
+    it('should return the full mascota profile', async () => {
+      const mockPerfil = {
+        ...mockMascota,
+        tipo: mockTipoMascota,
+        organizacion: { id: 'org-1', nombre: 'Refugio' },
+        casos: [],
+      };
+      prismaService.mascota.findUnique.mockResolvedValue(mockPerfil);
+
+      const result = await service.obtenerPerfil('1');
+
+      expect(result).toEqual(mockPerfil);
+      expect(prismaService.mascota.findUnique).toHaveBeenCalledWith({
+        where: { id: '1' },
+        include: expect.objectContaining({
+          tipo: true,
+          organizacion: expect.any(Object),
+          casos: expect.any(Object),
+        }),
+      });
+    });
+
+    it('should throw NotFoundException if mascota does not exist', async () => {
+      prismaService.mascota.findUnique.mockResolvedValue(null);
+
+      await expect(service.obtenerPerfil('fake-id'))
+        .rejects.toThrow(new NotFoundException('Mascota no encontrada'));
+    });
+  });
+
+  describe('actualizarEstado', () => {
+    it('should update the estado when the ONG owns the mascota', async () => {
+      prismaService.mascota.findUnique.mockResolvedValue(mockMascota);
+      prismaService.mascota.update.mockResolvedValue({
+        ...mockMascota,
+        estado: EstadoMascota.ADOPTADO,
+      });
+
+      const result = await service.actualizarEstado('1', EstadoMascota.ADOPTADO, 'org-1');
+
+      expect(prismaService.mascota.update).toHaveBeenCalledWith({
+        where: { id: '1' },
+        data: { estado: EstadoMascota.ADOPTADO },
+      });
+      expect(result.estado).toEqual(EstadoMascota.ADOPTADO);
+    });
+
+    it('should throw NotFoundException if mascota does not exist', async () => {
+      prismaService.mascota.findUnique.mockResolvedValue(null);
+
+      await expect(service.actualizarEstado('1', EstadoMascota.ADOPTADO, 'org-1'))
+        .rejects.toThrow(new NotFoundException('Mascota no encontrada'));
+    });
+
+    it('should throw ForbiddenException if the ONG does not own the mascota', async () => {
+      prismaService.mascota.findUnique.mockResolvedValue(mockMascota);
+
+      await expect(service.actualizarEstado('1', EstadoMascota.ADOPTADO, 'otra-org'))
+        .rejects.toThrow(new ForbiddenException('No puedes modificar el estado de esta mascota'));
     });
   });
 

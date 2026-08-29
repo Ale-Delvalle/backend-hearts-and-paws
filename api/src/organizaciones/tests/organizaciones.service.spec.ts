@@ -17,6 +17,14 @@ describe('OrganizacionesService', () => {
       findMany: jest.fn(),
       count: jest.fn(),
     },
+    mascota: {
+      count: jest.fn(),
+      findMany: jest.fn(),
+    },
+    caso: {
+      count: jest.fn(),
+      findMany: jest.fn(),
+    },
   };
 
   const mockMailerService = {
@@ -129,6 +137,101 @@ describe('OrganizacionesService', () => {
       await expect(
         service.actualizarEstado('fake-id', EstadoOrganizacion.RECHAZADA),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('obtenerPerfilPublico', () => {
+    const orgAprobada = {
+      id: '1',
+      nombre: 'Refugio',
+      descripcion: 'Descripción',
+      ciudad: 'CABA',
+      pais: 'Argentina',
+      imagenPerfil: 'url.com',
+      creado_en: new Date(),
+      estado: EstadoOrganizacion.APROBADA,
+    };
+
+    it('debería devolver el perfil público con contadores si la ONG está aprobada', async () => {
+      mockPrisma.organizacion.findUnique.mockResolvedValue(orgAprobada);
+      mockPrisma.mascota.count.mockResolvedValue(3);
+      mockPrisma.caso.count.mockResolvedValue(5);
+
+      const result = await service.obtenerPerfilPublico('1');
+
+      expect(result).toEqual({
+        id: '1',
+        nombre: 'Refugio',
+        descripcion: 'Descripción',
+        ciudad: 'CABA',
+        pais: 'Argentina',
+        imagenPerfil: 'url.com',
+        creado_en: orgAprobada.creado_en,
+        mascotasActivas: 3,
+        casosPublicados: 5,
+      });
+    });
+
+    it('debería lanzar NotFoundException si la organización no existe', async () => {
+      mockPrisma.organizacion.findUnique.mockResolvedValue(null);
+      await expect(service.obtenerPerfilPublico('fake-id')).rejects.toThrow(NotFoundException);
+    });
+
+    it('debería lanzar NotFoundException si la organización no está aprobada', async () => {
+      mockPrisma.organizacion.findUnique.mockResolvedValue({
+        ...orgAprobada,
+        estado: EstadoOrganizacion.PENDIENTE,
+      });
+      await expect(service.obtenerPerfilPublico('1')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('obtenerTimeline', () => {
+    it('debería devolver los casos paginados de la ONG', async () => {
+      mockPrisma.organizacion.findUnique.mockResolvedValue({ estado: EstadoOrganizacion.APROBADA });
+      mockPrisma.caso.findMany.mockResolvedValue([{ id: 'caso-1' }]);
+      mockPrisma.caso.count.mockResolvedValue(1);
+
+      const result = await service.obtenerTimeline('1', 1, 10);
+
+      expect(mockPrisma.caso.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { ongId: '1' },
+          orderBy: { creado_en: 'desc' },
+          skip: 0,
+          take: 10,
+        }),
+      );
+      expect(result).toEqual({ data: [{ id: 'caso-1' }], total: 1, page: 1, limit: 10 });
+    });
+
+    it('debería lanzar NotFoundException si la organización no está aprobada', async () => {
+      mockPrisma.organizacion.findUnique.mockResolvedValue(null);
+      await expect(service.obtenerTimeline('fake-id', 1, 10)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('obtenerMascotas', () => {
+    it('debería devolver las mascotas paginadas de la ONG filtradas por estado', async () => {
+      mockPrisma.organizacion.findUnique.mockResolvedValue({ estado: EstadoOrganizacion.APROBADA });
+      mockPrisma.mascota.findMany.mockResolvedValue([{ id: 'mascota-1' }]);
+      mockPrisma.mascota.count.mockResolvedValue(1);
+
+      const result = await service.obtenerMascotas('1', 'EN_ADOPCION' as any, 1, 12);
+
+      expect(mockPrisma.mascota.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { organizacionId: '1', estado: 'EN_ADOPCION' },
+          skip: 0,
+          take: 12,
+        }),
+      );
+      expect(result).toEqual({ data: [{ id: 'mascota-1' }], total: 1, page: 1, limit: 12 });
+    });
+
+    it('debería lanzar NotFoundException si la organización no está aprobada', async () => {
+      mockPrisma.organizacion.findUnique.mockResolvedValue({ estado: EstadoOrganizacion.RECHAZADA });
+      await expect(service.obtenerMascotas('1', undefined, 1, 12)).rejects.toThrow(NotFoundException);
     });
   });
 

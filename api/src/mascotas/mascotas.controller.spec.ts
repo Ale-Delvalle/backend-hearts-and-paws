@@ -5,6 +5,9 @@ import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../autenticacion/guards/roles.guard';
 import { CreateMascotaDto } from './dto/create-mascota.dto';
 import { TipoMascotaDto } from './dto/tipoMascota.dto';
+import { UpdateEstadoMascotaDto } from './dto/update-estado-mascota.dto';
+import { EstadoMascota } from '@prisma/client';
+import { UnauthorizedException } from '@nestjs/common';
 
 describe('MascotasController', () => {
   let controller: MascotasController;
@@ -33,6 +36,22 @@ describe('MascotasController', () => {
       id: 'org-1',
       email: 'test@example.com',
       role: 'ORGANIZACION'
+    }
+  };
+
+  const mockAuthenticatedOngRequest = {
+    user: {
+      id: 'org-1',
+      email: 'ong@example.com',
+      tipo: 'ONG'
+    }
+  };
+
+  const mockAuthenticatedUserRequest = {
+    user: {
+      id: 'user-1',
+      email: 'user@example.com',
+      tipo: 'USUARIO'
     }
   };
 
@@ -70,6 +89,8 @@ describe('MascotasController', () => {
       CreateMascota: jest.fn(),
       SubirImagenes: jest.fn(),
       contarMascotas: jest.fn(),
+      obtenerPerfil: jest.fn(),
+      actualizarEstado: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -172,6 +193,39 @@ describe('MascotasController', () => {
 
       expect(result).toEqual(expectedTipos);
       expect(service.GetTipo).toHaveBeenCalled();
+    });
+  });
+
+  describe('obtenerPerfil', () => {
+    it('should return the full mascota profile', async () => {
+      const mockPerfil = { ...mockMascota, organizacion: {}, casos: [] };
+      service.obtenerPerfil.mockResolvedValue(mockPerfil);
+
+      const result = await controller.obtenerPerfil('1');
+
+      expect(result).toEqual(mockPerfil);
+      expect(service.obtenerPerfil).toHaveBeenCalledWith('1');
+    });
+  });
+
+  describe('actualizarEstado', () => {
+    const dto: UpdateEstadoMascotaDto = { estado: EstadoMascota.ADOPTADO };
+
+    it('should update estado when requested by the owning ONG', async () => {
+      const expectedResult = { ...mockMascota, estado: EstadoMascota.ADOPTADO };
+      service.actualizarEstado.mockResolvedValue(expectedResult);
+
+      const result = await controller.actualizarEstado('1', dto, mockAuthenticatedOngRequest as any);
+
+      expect(result).toEqual(expectedResult);
+      expect(service.actualizarEstado).toHaveBeenCalledWith('1', dto.estado, 'org-1');
+    });
+
+    it('should throw UnauthorizedException if requester is not an ONG', async () => {
+      await expect(
+        controller.actualizarEstado('1', dto, mockAuthenticatedUserRequest as any),
+      ).rejects.toThrow(UnauthorizedException);
+      expect(service.actualizarEstado).not.toHaveBeenCalled();
     });
   });
 
