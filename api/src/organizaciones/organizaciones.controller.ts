@@ -1,9 +1,9 @@
-import { Controller, Post, Param, UseInterceptors, UploadedFile, Body, Get, Patch, UseGuards, Req, ParseUUIDPipe, Res, Query } from '@nestjs/common';
+import { Controller, Post, Param, UseInterceptors, UploadedFile, Body, Get, Patch, UseGuards, Req, ParseUUIDPipe, Res, Query, BadRequestException } from '@nestjs/common';
 import { OrganizacionesService } from './organizaciones.service';
 import { AnyFilesInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import { filtroArchivoImagen, limits } from 'src/cloudinary/file.interceptor';
 import { UpdateOrganizacioneDto } from './dto/update-organizacione.dto';
-import { EstadoOrganizacion } from '@prisma/client';
+import { EstadoOrganizacion, EstadoMascota } from '@prisma/client';
 import { RolesGuard } from 'src/autenticacion/guards/roles.guard';
 import { Roles } from 'src/autenticacion/decoradores/roles.decorator';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
@@ -97,6 +97,27 @@ export class OrganizacionesController {
     const pageNum = Math.max(parseInt(page ?? '1', 10) || 1, 1);
     const limitNum = Math.min(Math.max(parseInt(limit ?? '10', 10) || 10, 1), 50);
     return this.organizacionesService.obtenerTimeline(id, pageNum, limitNum);
+  }
+
+  @Get(':id/mascotas')
+  @ApiOperation({ summary: 'Obtener el catálogo público de mascotas de una organización, filtrable por estado' })
+  @ApiParam({ name: 'id', type: 'string', description: 'UUID de la organización' })
+  @ApiQuery({ name: 'estado', required: false, enum: EstadoMascota, description: 'Filtrar por estado de la mascota' })
+  @ApiQuery({ name: 'page', required: false, description: 'Número de página (default 1)' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Cantidad de resultados por página (default 12, máximo 50)' })
+  @ApiResponse({ status: 200, description: 'Catálogo paginado de mascotas de la organización' })
+  async obtenerMascotas(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('estado') estado?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    if (estado && !Object.values(EstadoMascota).includes(estado as EstadoMascota)) {
+      throw new BadRequestException(`Estado inválido. Valores permitidos: ${Object.values(EstadoMascota).join(', ')}`);
+    }
+    const pageNum = Math.max(parseInt(page ?? '1', 10) || 1, 1);
+    const limitNum = Math.min(Math.max(parseInt(limit ?? '12', 10) || 12, 1), 50);
+    return this.organizacionesService.obtenerMascotas(id, estado as EstadoMascota | undefined, pageNum, limitNum);
   }
 
   @UseGuards(JwtAutCookiesGuardia)

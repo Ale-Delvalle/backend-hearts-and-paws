@@ -130,6 +130,40 @@ export class OrganizacionesService {
     return { data, total, page, limit };
   }
 
+  async obtenerMascotas(id: string, estado: EstadoMascota | undefined, page: number, limit: number){
+    const organizacion = await this.prisma.organizacion.findUnique({
+      where: { id },
+      select: { estado: true },
+    });
+
+    if (!organizacion || organizacion.estado !== EstadoOrganizacion.APROBADA) {
+      throw new NotFoundException('Organización no encontrada');
+    }
+
+    const where = {
+      organizacionId: id,
+      ...(estado && { estado }),
+    };
+
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await Promise.all([
+      this.prisma.mascota.findMany({
+        where,
+        orderBy: { creada_en: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          tipo: true,
+          imagenes: { orderBy: { subida_en: 'desc' }, take: 1 },
+        },
+      }),
+      this.prisma.mascota.count({ where }),
+    ]);
+
+    return { data, total, page, limit };
+  }
+
   async listarTodas(query: any){
     const { nombre, email, ciudad, plan, creado_en} = query
 
