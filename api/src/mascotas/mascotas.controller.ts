@@ -2,15 +2,18 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Body,
   Param,
   UseInterceptors,
   UploadedFiles,
   UseGuards,
-  Req
+  Req,
+  UnauthorizedException
 } from '@nestjs/common';
 import { MascotasService } from './mascotas.service';
 import { CreateMascotaDto } from './dto/create-mascota.dto';
+import { UpdateEstadoMascotaDto } from './dto/update-estado-mascota.dto';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
@@ -18,7 +21,8 @@ import {
   ApiResponse,
   ApiParam,
   ApiBody,
-  ApiConsumes
+  ApiConsumes,
+  ApiBearerAuth
 } from '@nestjs/swagger';
 import { TipoMascotaDto } from './dto/tipoMascota.dto';
 import { AuthGuard } from '@nestjs/passport';
@@ -160,6 +164,26 @@ export class MascotasController {
   ) {
     const { nombre } = datos;
     return this.mascotasService.crearTipoDeMascota(nombre);
+  }
+
+  @UseGuards(AuthGuard('jwt-local'))
+  @Patch(':id/estado')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Cambiar el estado de una mascota (solo la ONG dueña)' })
+  @ApiParam({ name: 'id', required: true, description: 'ID de la mascota' })
+  @ApiBody({ type: UpdateEstadoMascotaDto })
+  @ApiResponse({ status: 200, description: 'Estado actualizado correctamente.' })
+  @ApiResponse({ status: 403, description: 'No autorizado a modificar esta mascota.' })
+  @ApiResponse({ status: 404, description: 'Mascota no encontrada.' })
+  async actualizarEstado(
+    @Param('id') id: string,
+    @Body() dto: UpdateEstadoMascotaDto,
+    @Req() req: AuthenticateRequest,
+  ) {
+    if (req.user.tipo !== 'ONG') {
+      throw new UnauthorizedException('Solo una organización puede modificar el estado de una mascota.');
+    }
+    return this.mascotasService.actualizarEstado(id, dto.estado, req.user.id);
   }
 
   // ONG autenticada: Subir imágenes

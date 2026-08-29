@@ -2,6 +2,7 @@ import { Injectable, Get, NotFoundException, ForbiddenException, BadRequestExcep
 import { CreateMascotaDto } from './dto/create-mascota.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { EstadoMascota } from '@prisma/client';
 import { TipoMascotaDto } from './dto/tipoMascota.dto';
 import axios from 'axios';
 
@@ -63,6 +64,23 @@ export class MascotasService {
     }
 
     return mascota;
+  }
+
+  async actualizarEstado(id: string, estado: EstadoMascota, ongId: string) {
+    const mascota = await this.prismaService.mascota.findUnique({ where: { id } });
+
+    if (!mascota) {
+      throw new NotFoundException('Mascota no encontrada');
+    }
+
+    if (mascota.organizacionId !== ongId) {
+      throw new ForbiddenException('No puedes modificar el estado de esta mascota');
+    }
+
+    return this.prismaService.mascota.update({
+      where: { id },
+      data: { estado },
+    });
   }
 
   async GetMascotasByOngId(ongId: string) {
