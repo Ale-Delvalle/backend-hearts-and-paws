@@ -103,6 +103,8 @@ model Caso {
   favoritos   Favorito[]
   adopcion    CasoAdopcion?
   donacion    CasoDonacion?
+
+  @@index([ongId, creado_en])
 }
 
 model CasoAdopcion {
@@ -185,6 +187,7 @@ model Mascota {
   edad           Int
   descripcion    String?
   creada_en      DateTime       @default(now())
+  estado         EstadoMascota  @default(EN_ADOPCION)
 
   organizacion   Organizacion   @relation(fields: [organizacionId], references: [id])
   organizacionId String
@@ -195,6 +198,8 @@ model Mascota {
   imagenes       imagenMascota[]
   casos          Caso[]
   donaciones     Donacion[]
+
+  @@index([organizacionId, estado])
 }
 
 
@@ -269,4 +274,11 @@ enum TipoVivienda {
   casaConPatio
   casaSinPatio
   departamento
+}
+
+enum EstadoMascota {
+  EN_ADOPCION
+  EN_TRANSITO
+  ADOPTADO
+  FALLECIDO
 }
