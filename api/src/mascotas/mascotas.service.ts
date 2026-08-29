@@ -33,6 +33,38 @@ export class MascotasService {
     });
   }
 
+  async obtenerPerfil(id: string) {
+    const mascota = await this.prismaService.mascota.findUnique({
+      where: { id },
+      include: {
+        tipo: true,
+        imagenes: { orderBy: { subida_en: 'desc' } },
+        organizacion: {
+          select: {
+            id: true,
+            nombre: true,
+            imagenPerfil: true,
+            ciudad: true,
+            pais: true,
+          },
+        },
+        casos: {
+          orderBy: { creado_en: 'desc' },
+          include: {
+            adopcion: true,
+            donacion: true,
+          },
+        },
+      },
+    });
+
+    if (!mascota) {
+      throw new NotFoundException('Mascota no encontrada');
+    }
+
+    return mascota;
+  }
+
   async GetMascotasByOngId(ongId: string) {
     
     return this.prismaService.mascota.findMany({

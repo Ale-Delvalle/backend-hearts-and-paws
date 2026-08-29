@@ -80,6 +80,15 @@ export class MascotasController {
     return this.mascotasService.GetMascotasByOngId(ongId);
   }
 
+  @Get(':id/perfil')
+  @ApiOperation({ summary: 'Obtener el perfil público completo de una mascota: imágenes, tipo, ONG dueña y su historial de casos' })
+  @ApiParam({ name: 'id', required: true, description: 'ID de la mascota', example: 'b6985ee8-9802-497c-97b4-1a43843a3c1f' })
+  @ApiResponse({ status: 200, description: 'Perfil completo de la mascota.' })
+  @ApiResponse({ status: 404, description: 'Mascota no encontrada.' })
+  obtenerPerfil(@Param('id') id: string) {
+    return this.mascotasService.obtenerPerfil(id);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Obtener una mascota por ID' })
   @ApiParam({ name: 'id', required: true, description: 'ID de la mascota', example: 'b6985ee8-9802-497c-97b4-1a43843a3c1f' })
