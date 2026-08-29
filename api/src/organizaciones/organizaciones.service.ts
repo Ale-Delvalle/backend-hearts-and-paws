@@ -96,6 +96,40 @@ export class OrganizacionesService {
     };
   }
 
+  async obtenerTimeline(id: string, page: number, limit: number){
+    const organizacion = await this.prisma.organizacion.findUnique({
+      where: { id },
+      select: { estado: true },
+    });
+
+    if (!organizacion || organizacion.estado !== EstadoOrganizacion.APROBADA) {
+      throw new NotFoundException('Organización no encontrada');
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await Promise.all([
+      this.prisma.caso.findMany({
+        where: { ongId: id },
+        orderBy: { creado_en: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          mascota: {
+            include: {
+              imagenes: { orderBy: { subida_en: 'desc' }, take: 1 },
+            },
+          },
+          adopcion: true,
+          donacion: true,
+        },
+      }),
+      this.prisma.caso.count({ where: { ongId: id } }),
+    ]);
+
+    return { data, total, page, limit };
+  }
+
   async listarTodas(query: any){
     const { nombre, email, ciudad, plan, creado_en} = query
 

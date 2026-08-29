@@ -8,7 +8,7 @@ import { RolesGuard } from 'src/autenticacion/guards/roles.guard';
 import { Roles } from 'src/autenticacion/decoradores/roles.decorator';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { JwtAutCookiesGuardia } from 'src/autenticacion/guards/jwtAut.guardia';
-import { ApiOperation, ApiResponse, ApiTags, ApiBearerAuth, ApiParam, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags, ApiBearerAuth, ApiParam, ApiConsumes, ApiBody, ApiQuery } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { Response } from 'express';
 
@@ -81,6 +81,22 @@ export class OrganizacionesController {
   @ApiResponse({ status: 200, description: 'Perfil público de la organización' })
   async obtenerPerfilPublico(@Param('id', ParseUUIDPipe) id: string) {
     return this.organizacionesService.obtenerPerfilPublico(id);
+  }
+
+  @Get(':id/timeline')
+  @ApiOperation({ summary: 'Obtener el timeline público (casos) de una organización, paginado y ordenado por fecha' })
+  @ApiParam({ name: 'id', type: 'string', description: 'UUID de la organización' })
+  @ApiQuery({ name: 'page', required: false, description: 'Número de página (default 1)' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Cantidad de resultados por página (default 10, máximo 50)' })
+  @ApiResponse({ status: 200, description: 'Timeline paginado de casos publicados por la organización' })
+  async obtenerTimeline(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const pageNum = Math.max(parseInt(page ?? '1', 10) || 1, 1);
+    const limitNum = Math.min(Math.max(parseInt(limit ?? '10', 10) || 10, 1), 50);
+    return this.organizacionesService.obtenerTimeline(id, pageNum, limitNum);
   }
 
   @UseGuards(JwtAutCookiesGuardia)
