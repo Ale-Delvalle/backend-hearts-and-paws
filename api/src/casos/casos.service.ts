@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { CreateCasoDto } from './dto/create-caso.dto';
 import { UpdateCasoDto } from './dto/update-caso.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { TipoCaso } from '@prisma/client';
+import { TipoCaso, EstadoOrganizacion } from '@prisma/client';
 import { FiltroViejoRecienteEnum } from './enums/filtro-tipo-reciente-antiguo.enum';
 
 @Injectable()
@@ -20,6 +20,43 @@ export class CasosService {
 
   }
   
+  async obtenerTimelineGlobal(page: number, limit: number) {
+    const skip = (page - 1) * limit;
+    const where = {
+      ong: { estado: EstadoOrganizacion.APROBADA },
+    };
+
+    const [data, total] = await Promise.all([
+      this.prismaService.caso.findMany({
+        where,
+        orderBy: { creado_en: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          mascota: {
+            include: {
+              imagenes: { orderBy: { subida_en: 'desc' }, take: 1 },
+            },
+          },
+          ong: {
+            select: {
+              id: true,
+              nombre: true,
+              imagenPerfil: true,
+              ciudad: true,
+              pais: true,
+            },
+          },
+          adopcion: true,
+          donacion: true,
+        },
+      }),
+      this.prismaService.caso.count({ where }),
+    ]);
+
+    return { data, total, page, limit };
+  }
+
   async GetCasoById(id: string) {
     return this.prismaService.caso.findUnique({
       where: { id },

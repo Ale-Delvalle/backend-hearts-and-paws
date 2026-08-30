@@ -171,6 +171,20 @@ export class CasosController {
     return this.casosService.CreateCaso(createCasoDto, ongId);
   }
 
+  @Get('timeline')
+  @ApiOperation({ summary: 'Obtener el timeline público global (casos de todas las ONGs aprobadas), paginado y ordenado por fecha' })
+  @ApiQuery({ name: 'page', required: false, description: 'Número de página (default 1)' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Cantidad de resultados por página (default 10, máximo 50)' })
+  @ApiResponse({ status: 200, description: 'Timeline paginado de casos publicados por todas las organizaciones aprobadas' })
+  async obtenerTimelineGlobal(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const pageNum = Math.max(parseInt(page ?? '1', 10) || 1, 1);
+    const limitNum = Math.min(Math.max(parseInt(limit ?? '10', 10) || 10, 1), 50);
+    return this.casosService.obtenerTimelineGlobal(pageNum, limitNum);
+  }
+
   @Get('buscar')
   @ApiOperation({ summary: 'Buscar casos por tipo y nombre de mascota' })
   @ApiQuery({ name: 'tipo', required: false, description: 'Tipo de mascota' })
