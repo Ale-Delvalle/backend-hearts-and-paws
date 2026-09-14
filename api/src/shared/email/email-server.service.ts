@@ -5,6 +5,8 @@ import { SendMailOptions } from "./email-server.interface";
 import { renderRegistroOngEmail } from "./templates/registro-ong.template";
 import { renderOngAprobadaEmail } from "./templates/ong-aprobada.template";
 import { renderOngRechazadaEmail } from "./templates/ong-rechazada.template";
+import { renderAdopcionAprobadaEmail } from "./templates/adopcion-aprobada.template";
+import { renderAdopcionNoSeleccionadaEmail } from "./templates/adopcion-no-seleccionada.template";
 
 
 @Injectable()
@@ -79,14 +81,17 @@ Si no recibís el correo dentro del plazo estipulado, recordá revisar la carpet
   const asunto = `Resolución de adopción - ${nombreMascota}`;
 
   const mensajeAceptado = `¡Felicitaciones! Tu solicitud de adopción para ${nombreMascota} ha sido ACEPTADA. La organización se pondrá en contacto con vos para coordinar la entrega.`;
+  const htmlAceptado = renderAdopcionAprobadaEmail({ nombreMascota });
   
   const mensajeRechazado = `Lamentamos informarte que tu solicitud de adopción para ${nombreMascota} ha sido RECHAZADA. Agradecemos tu interés en adoptar y te animamos a seguir participando en otros casos.`;
+  const htmlRechazado = renderAdopcionNoSeleccionadaEmail({ nombreMascota });
 
   // Email al adoptante aceptado
   await this.enviarEMail({
     to: emailAceptado,
     subject: asunto,
     text: mensajeAceptado,
+    html: htmlAceptado,
   });
 
   // Emails a los rechazados
@@ -98,6 +103,7 @@ Si no recibís el correo dentro del plazo estipulado, recordá revisar la carpet
         to: email,
         subject: asunto,
         text: mensajeRechazado,
+        html: htmlRechazado,
       }),
     )
   );
