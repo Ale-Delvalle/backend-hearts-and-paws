@@ -3,6 +3,8 @@ import { ConfigService } from "@nestjs/config";
 import * as nodemailer from 'nodemailer';
 import { SendMailOptions } from "./email-server.interface";
 import { renderRegistroOngEmail } from "./templates/registro-ong.template";
+import { renderOngAprobadaEmail } from "./templates/ong-aprobada.template";
+import { renderOngRechazadaEmail } from "./templates/ong-rechazada.template";
 
 
 @Injectable()
@@ -30,17 +32,23 @@ export class MailerService {
     }
 
     async enviarEstadoActualizado(destinatario: string, estado: 'ACEPTADA' | 'RECHAZADA'){
-        const subject = 'Estado de tu organización actualizado'
+        const subject = 'Estado de tu organización actualizado';
         const text =
             estado === 'ACEPTADA'
                 ? '¡Felicidades! Tu organización ha sido aceptada en la plataforma.'
-                : 'Lamentablemente, tu organización ha sido rechazada. Revisa los requisitos y vuelve a intentarlo.'
+                : 'Lamentablemente, tu organización ha sido rechazada. Revisa los requisitos y vuelve a intentarlo.';
         
+        const html =
+            estado === 'ACEPTADA'
+                ? renderOngAprobadaEmail()
+                : renderOngRechazadaEmail();
+
         return this.enviarEMail({
             to: destinatario,
             subject,
             text,
-        })
+            html,
+        });
     }
 
     async enviarConfirmacionRegistro(destinatario: string, nombreOrganizacion: string){
