@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as nodemailer from 'nodemailer';
 import { SendMailOptions } from "./email-server.interface";
+import { renderRegistroOngEmail } from "./templates/registro-ong.template";
 
 
 @Injectable()
@@ -52,11 +53,13 @@ En las próximas 24 horas recibirás un correo electrónico con el estado de tu 
 
 Si no recibís el correo dentro del plazo estipulado, recordá revisar la carpeta de correo no deseado.
         `;
+        const html = renderRegistroOngEmail({ nombreOrganizacion });
 
         return this.enviarEMail({
             to: destinatario,
             subject,
             text,
+            html,
         });
     }
 
