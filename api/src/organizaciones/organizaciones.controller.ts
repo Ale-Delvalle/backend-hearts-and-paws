@@ -99,6 +99,24 @@ export class OrganizacionesController {
     return this.organizacionesService.obtenerTimeline(id, pageNum, limitNum);
   }
 
+  @Get(':id/casos-cerrados')
+  @ApiOperation({ summary: 'Obtener los casos resueltos o cerrados de una organización, paginados y filtrables por motivo' })
+  @ApiParam({ name: 'id', type: 'string', description: 'UUID de la organización' })
+  @ApiQuery({ name: 'motivo', required: false, enum: ['ADOPCION', 'DONACION', 'FALLECIDO'], description: 'Filtrar por motivo de cierre' })
+  @ApiQuery({ name: 'page', required: false, description: 'Número de página (default 1)' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Cantidad de resultados por página (default 10, máximo 50)' })
+  @ApiResponse({ status: 200, description: 'Casos cerrados paginados de la organización' })
+  async obtenerCasosCerrados(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('motivo') motivo?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const pageNum = Math.max(parseInt(page ?? '1', 10) || 1, 1);
+    const limitNum = Math.min(Math.max(parseInt(limit ?? '10', 10) || 10, 1), 50);
+    return this.organizacionesService.obtenerCasosCerrados(id, pageNum, limitNum, motivo);
+  }
+
   @Get(':id/mascotas')
   @ApiOperation({ summary: 'Obtener el catálogo público de mascotas de una organización, filtrable por estado' })
   @ApiParam({ name: 'id', type: 'string', description: 'UUID de la organización' })

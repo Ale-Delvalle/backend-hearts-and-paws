@@ -211,6 +211,50 @@ describe('OrganizacionesService', () => {
     });
   });
 
+  describe('obtenerCasosCerrados', () => {
+    it('debería devolver los casos cerrados paginados', async () => {
+      mockPrisma.organizacion.findUnique.mockResolvedValue({ estado: EstadoOrganizacion.APROBADA });
+      mockPrisma.caso.findMany.mockResolvedValue([{ id: 'caso-cerrado-1' }]);
+      mockPrisma.caso.count.mockResolvedValue(1);
+
+      const result = await service.obtenerCasosCerrados('1', 1, 10);
+
+      expect(mockPrisma.caso.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ ongId: '1' }),
+          orderBy: { creado_en: 'desc' },
+          skip: 0,
+          take: 10,
+        }),
+      );
+      expect(result).toEqual({ data: [{ id: 'caso-cerrado-1' }], total: 1, page: 1, limit: 10 });
+    });
+
+    it('debería filtrar por motivo de adopción', async () => {
+      mockPrisma.organizacion.findUnique.mockResolvedValue({ estado: EstadoOrganizacion.APROBADA });
+      mockPrisma.caso.findMany.mockResolvedValue([]);
+      mockPrisma.caso.count.mockResolvedValue(0);
+
+      await service.obtenerCasosCerrados('1', 1, 10, 'ADOPCION');
+
+      expect(mockPrisma.caso.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            ongId: '1',
+            OR: expect.arrayContaining([
+              expect.objectContaining({ adopcion: { estado: 'ACEPTADA' } }),
+            ]),
+          }),
+        }),
+      );
+    });
+
+    it('debería lanzar NotFoundException si la organización no existe o no está aprobada', async () => {
+      mockPrisma.organizacion.findUnique.mockResolvedValue(null);
+      await expect(service.obtenerCasosCerrados('fake-id', 1, 10)).rejects.toThrow(NotFoundException);
+    });
+  });
+
   describe('obtenerMascotas', () => {
     it('debería devolver las mascotas paginadas de la ONG filtradas por estado', async () => {
       mockPrisma.organizacion.findUnique.mockResolvedValue({ estado: EstadoOrganizacion.APROBADA });

@@ -15,6 +15,7 @@ describe('OrganizacionesController', () => {
     const mockOrganizacionesService = {
       obtenerPerfilPublico: jest.fn(),
       obtenerTimeline: jest.fn(),
+      obtenerCasosCerrados: jest.fn(),
       obtenerMascotas: jest.fn(),
     };
 
@@ -78,6 +79,26 @@ describe('OrganizacionesController', () => {
       await controller.obtenerTimeline('1', '2', '999');
 
       expect(service.obtenerTimeline).toHaveBeenCalledWith('1', 2, 50);
+    });
+  });
+
+  describe('obtenerCasosCerrados', () => {
+    it('debería usar los valores por defecto de paginación y pasar el motivo', async () => {
+      const casosMock = { data: [], total: 0, page: 1, limit: 10 };
+      service.obtenerCasosCerrados.mockResolvedValue(casosMock);
+
+      const result = await controller.obtenerCasosCerrados('1', 'ADOPCION', undefined, undefined);
+
+      expect(result).toEqual(casosMock);
+      expect(service.obtenerCasosCerrados).toHaveBeenCalledWith('1', 1, 10, 'ADOPCION');
+    });
+
+    it('debería limitar el máximo a 50', async () => {
+      service.obtenerCasosCerrados.mockResolvedValue({ data: [], total: 0, page: 1, limit: 50 });
+
+      await controller.obtenerCasosCerrados('1', undefined, '1', '999');
+
+      expect(service.obtenerCasosCerrados).toHaveBeenCalledWith('1', 1, 50, undefined);
     });
   });
 
