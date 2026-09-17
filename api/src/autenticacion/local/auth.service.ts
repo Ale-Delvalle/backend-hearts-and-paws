@@ -73,7 +73,9 @@ export class ServicioAut {
 
 
     if (!usuarioEncontrado) {
-      throw new UnauthorizedException('Credenciales incorrectas');
+      throw new UnauthorizedException(
+        'Credenciales incorrectas. Verifique que el email ingresado corresponde al tipo de cuenta de Usuario.'
+      );
     }
 
 
@@ -83,7 +85,9 @@ export class ServicioAut {
     );
 
     if (!isValidPassword) {
-      throw new UnauthorizedException('Credenciales incorrectas');
+      throw new UnauthorizedException(
+        'Credenciales incorrectas. Verifique que el email ingresado corresponde al tipo de cuenta de Usuario.'
+      );
     }
 
     const userPayload = {
@@ -117,7 +121,9 @@ export class ServicioAut {
     const organizacion = await this.prisma.organizacion.findUnique({where: {email}});
 
     if (!organizacion) {
-      throw new UnauthorizedException('Credenciales incorrectas');
+      throw new UnauthorizedException(
+        'Credenciales incorrectas. Verifique que el email ingresado corresponde al tipo de cuenta de ONG.'
+      );
     }
 
     if (organizacion.estado !== 'APROBADA') {
@@ -127,7 +133,9 @@ export class ServicioAut {
     const isValidPassword = await bcrypt.compare(contrasena, organizacion.contrasena);
 
     if (!isValidPassword) {
-      throw new UnauthorizedException('Credenciales incorrectas');
+      throw new UnauthorizedException(
+        'Credenciales incorrectas. Verifique que el email ingresado corresponde al tipo de cuenta de ONG.'
+      );
     }
 
     const payload = {
