@@ -34,6 +34,7 @@ model Usuario {
   solicitudesAdopcion SolicitudDeAdopcion[]
   chats      Chat[]     @relation("UsuarioChats")
   mensajes   Mensaje[]  @relation("UsuarioMensajes")
+  mascotasPerdidas MascotaPerdida[]
 }
 
 model Favorito {
@@ -67,6 +68,7 @@ model Organizacion {
   donaciones Donacion[]
   casos Caso[]
   mensajes     Mensaje[]    @relation("OrgMensajes")
+  mascotasPerdidas MascotaPerdida[]
 }
 
 model imagenMascota {
@@ -281,4 +283,32 @@ enum EstadoMascota {
   EN_TRANSITO
   ADOPTADO
   FALLECIDO
+}
+
+model MascotaPerdida {
+  id             String         @id @default(uuid())
+  nombre         String
+  tipo           String
+  descripcion    String
+  ubicacion      String
+  ciudad         String?
+  contacto       String
+  imagenUrl      String?
+  recompensa     String?
+  estado         EstadoPerdida  @default(PERDIDO)
+  fechaPerdido   DateTime       @default(now())
+  creado_en      DateTime       @default(now())
+
+  usuario        Usuario?       @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  usuarioId      String?
+  organizacion   Organizacion?  @relation(fields: [organizacionId], references: [id], onDelete: Cascade)
+  organizacionId String?
+
+  @@index([estado, creado_en])
+}
+
+enum EstadoPerdida {
+  PERDIDO
+  ENCONTRADO
+  REUNIDO
 }
