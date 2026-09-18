@@ -17,6 +17,7 @@ import { SupabaseModule } from './autenticacion/supabase/supabase.module';
 import { SolicitudAdoptarModule } from './solicitud-adoptar/solicitud-adoptar.module';
 import { DonacionModule } from './donacion/donacion.module';
 import { GoogleVisionModule } from './google-vision/google-vision.module';
+import { MascotasPerdidasModule } from './mascotas-perdidas/mascotas-perdidas.module';
 
 @Module({
   imports: [
@@ -35,10 +36,10 @@ import { GoogleVisionModule } from './google-vision/google-vision.module';
     ChatModule,
     StripeModule,
     SupabaseModule,
-    ChatModule,
     SolicitudAdoptarModule,
     DonacionModule,
-    GoogleVisionModule
+    GoogleVisionModule,
+    MascotasPerdidasModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],
