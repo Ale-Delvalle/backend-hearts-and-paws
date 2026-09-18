@@ -7,6 +7,8 @@ import {
   Param,
   UseInterceptors,
   UploadedFiles,
+  UploadedFile,
+  BadRequestException,
   UseGuards,
   Req,
   UnauthorizedException
@@ -14,7 +16,7 @@ import {
 import { MascotasService } from './mascotas.service';
 import { CreateMascotaDto } from './dto/create-mascota.dto';
 import { UpdateEstadoMascotaDto } from './dto/update-estado-mascota.dto';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { FilesInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
   ApiOperation,
@@ -219,5 +221,34 @@ export class MascotasController {
   ) {
     const ongId = req.user.id;
     return this.mascotasService.SubirImagenes(mascotaId, archivos, ongId);
+  }
+
+  @UseGuards(AuthGuard('jwt-local'))
+  @Patch(':id/cambiar-foto')
+  @UseInterceptors(FileInterceptor('foto'))
+  @ApiOperation({ summary: 'Cambiar la foto principal de una mascota (solo la ONG dueña)' })
+  @ApiParam({ name: 'id', required: true, description: 'ID de la mascota' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        foto: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Foto actualizada correctamente.' })
+  @ApiResponse({ status: 403, description: 'No autorizado a modificar esta mascota.' })
+  @ApiResponse({ status: 404, description: 'Mascota no encontrada.' })
+  async cambiarFoto(
+    @Param('id') id: string,
+    @UploadedFile() archivo: Express.Multer.File,
+    @Req() req: AuthenticateRequest,
+  ) {
+    if (!archivo) {
+      throw new BadRequestException('Debe enviar un archivo de imagen válido.');
+    }
+    const ongId = req.user.id;
+    return this.mascotasService.cambiarFoto(id, archivo, ongId);
   }
 }

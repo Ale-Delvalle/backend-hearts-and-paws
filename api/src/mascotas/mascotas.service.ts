@@ -249,5 +249,88 @@ async CreateMascota(createMascotaDto: CreateMascotaDto, ongId: string) {
     const total = await this.prismaService.mascota.count();
     return { total };
   }
-  
+
+  async cambiarFoto(mascotaId: string, archivo: Express.Multer.File, ongId: string) {
+    const mascota = await this.prismaService.mascota.findUnique({
+      where: { id: mascotaId },
+      include: { imagenes: true },
+    });
+
+    if (!mascota) {
+      throw new NotFoundException('Mascota no encontrada');
+    }
+
+    if (mascota.organizacionId !== ongId) {
+      throw new ForbiddenException('No puedes modificar la foto de esta mascota');
+    }
+
+    try {
+      const result = await this.cloudinaryService.subirIamgen(archivo);
+
+      let violenciaScore = 0;
+      let esSensible = false;
+      let urlDesenfocada: string | null = null;
+
+      if (process.env.SIGHTENGINE_USER && process.env.SIGHTENGINE_SECRET) {
+        try {
+          const res = await axios.get('https://api.sightengine.com/1.0/check.json', {
+            params: {
+              url: result.secure_url,
+              models: 'violence,gore',
+              api_user: process.env.SIGHTENGINE_USER,
+              api_secret: process.env.SIGHTENGINE_SECRET,
+            },
+          });
+          if (res.data?.status !== 'failure') {
+            violenciaScore = Math.max(
+              res.data.violence?.prob || 0,
+              res.data.gore?.prob || 0
+            );
+            esSensible = violenciaScore > 0.7;
+            if (esSensible) {
+              const urlOriginal = result.secure_url;
+              const partes = urlOriginal.split('/upload/');
+              urlDesenfocada = `${partes[0]}/upload/e_pixelate:100/${partes[1]}`;
+            }
+          }
+        } catch (sightErr) {
+          console.warn('Error al analizar imagen con Sightengine:', sightErr);
+        }
+      }
+
+      // Eliminamos las imágenes anteriores vinculadas a la mascota
+      await this.prismaService.imagenMascota.deleteMany({
+        where: { mascotaId },
+      });
+
+      // Registramos la nueva imagen principal
+      const nuevaImagen = await this.prismaService.imagenMascota.create({
+        data: {
+          url: result.secure_url,
+          urlBlur: urlDesenfocada,
+          mascotaId,
+          violenciaScore,
+          esSensible,
+        },
+      });
+
+      return {
+        ok: true,
+        mensaje: 'Foto de la mascota actualizada exitosamente',
+        imagen: nuevaImagen,
+      };
+    } catch (error: any) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException ||
+        error instanceof ForbiddenException
+      ) {
+        throw error;
+      }
+      console.error('Error al cambiar foto de mascota:', error);
+      throw new InternalServerErrorException(
+        'Falló la actualización de la foto: ' + (error.message || 'Error desconocido')
+      );
+    }
+  }
 }
