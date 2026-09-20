@@ -8,7 +8,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { CrearMascotaPerdidaDto } from './dto/crear-mascota-perdida.dto';
 import { FiltroMascotasPerdidasDto } from './dto/filtro-mascotas-perdidas.dto';
-import { EstadoPerdida, Prisma } from '@prisma/client';
+import { EstadoModeracion, EstadoPerdida, Prisma } from '@prisma/client';
 
 @Injectable()
 export class MascotasPerdidasService {
@@ -22,7 +22,9 @@ export class MascotasPerdidasService {
     const limit = Math.min(50, Math.max(1, parseInt(filtros.limit || '12', 10)));
     const skip = (page - 1) * limit;
 
-    const where: Prisma.MascotaPerdidaWhereInput = {};
+    const where: Prisma.MascotaPerdidaWhereInput = {
+      moderacion: EstadoModeracion.APROBADA,
+    };
 
     if (filtros.estado) {
       where.estado = filtros.estado as EstadoPerdida;
@@ -91,7 +93,7 @@ export class MascotasPerdidasService {
     };
   }
 
-  async obtenerPorId(id: string) {
+  async obtenerPorId(id: string, user?: { id: string; tipo: string; rol?: string }) {
     const mascotaPerdida = await this.prisma.mascotaPerdida.findUnique({
       where: { id },
       include: {
@@ -118,6 +120,17 @@ export class MascotasPerdidasService {
 
     if (!mascotaPerdida) {
       throw new NotFoundException('Publicación de mascota perdida no encontrada.');
+    }
+
+    if (mascotaPerdida.moderacion !== EstadoModeracion.APROBADA) {
+      const puedeVer =
+        user?.rol === 'ADMIN' ||
+        (user?.tipo === 'USUARIO' && mascotaPerdida.usuarioId === user.id) ||
+        (user?.tipo === 'ONG' && mascotaPerdida.organizacionId === user.id);
+
+      if (!puedeVer) {
+        throw new NotFoundException('Publicación de mascota perdida no encontrada.');
+      }
     }
 
     return mascotaPerdida;
@@ -151,6 +164,7 @@ export class MascotasPerdidasService {
     }
 
     const estadoInicial = (dto.estado as EstadoPerdida) || EstadoPerdida.PERDIDO;
+    const esAdmin = user.rol === 'ADMIN';
 
     const nuevaPublicacion = await this.prisma.mascotaPerdida.create({
       data: {
@@ -162,6 +176,7 @@ export class MascotasPerdidasService {
         contacto: dto.contacto,
         recompensa: dto.recompensa || null,
         estado: estadoInicial,
+        moderacion: esAdmin ? EstadoModeracion.APROBADA : EstadoModeracion.PENDIENTE,
         fechaPerdido,
         imagenUrl,
         usuarioId: user.tipo === 'USUARIO' ? user.id : null,
@@ -191,7 +206,9 @@ export class MascotasPerdidasService {
 
     return {
       ok: true,
-      mensaje: 'Publicación creada exitosamente',
+      mensaje: esAdmin
+        ? 'Publicación creada exitosamente'
+        : 'Publicación creada. Quedará visible cuando un administrador la apruebe',
       publicacion: nuevaPublicacion,
     };
   }
