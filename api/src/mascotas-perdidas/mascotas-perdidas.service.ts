@@ -8,7 +8,21 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { CrearMascotaPerdidaDto } from './dto/crear-mascota-perdida.dto';
 import { FiltroMascotasPerdidasDto } from './dto/filtro-mascotas-perdidas.dto';
+import { ModerarMascotaPerdidaDto } from './dto/moderar-mascota-perdida.dto';
 import { EstadoModeracion, EstadoPerdida, Prisma } from '@prisma/client';
+
+const AUTOR_SELECT = {
+  id: true,
+  nombre: true,
+  email: true,
+  telefono: true,
+  imagenPerfil: true,
+} as const;
+
+const INCLUDE_AUTOR = {
+  usuario: { select: AUTOR_SELECT },
+  organizacion: { select: AUTOR_SELECT },
+} as const;
 
 @Injectable()
 export class MascotasPerdidasService {
@@ -211,6 +225,71 @@ export class MascotasPerdidasService {
         : 'Publicación creada. Quedará visible cuando un administrador la apruebe',
       publicacion: nuevaPublicacion,
     };
+  }
+
+  async obtenerPendientes(filtros: FiltroMascotasPerdidasDto) {
+    const page = Math.max(1, parseInt(filtros.page || '1', 10));
+    const limit = Math.min(50, Math.max(1, parseInt(filtros.limit || '12', 10)));
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.MascotaPerdidaWhereInput = {
+      moderacion: EstadoModeracion.PENDIENTE,
+    };
+
+    const [total, data] = await Promise.all([
+      this.prisma.mascotaPerdida.count({ where }),
+      this.prisma.mascotaPerdida.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { creado_en: 'asc' },
+        include: INCLUDE_AUTOR,
+      }),
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+      limit,
+    };
+  }
+
+  async moderar(id: string, dto: ModerarMascotaPerdidaDto) {
+    const publicacion = await this.prisma.mascotaPerdida.findUnique({
+      where: { id },
+    });
+
+    if (!publicacion) {
+      throw new NotFoundException('Publicación no encontrada.');
+    }
+
+    const actualizada = await this.prisma.mascotaPerdida.update({
+      where: { id },
+      data: { moderacion: dto.moderacion as EstadoModeracion },
+      include: INCLUDE_AUTOR,
+    });
+
+    return {
+      ok: true,
+      mensaje:
+        dto.moderacion === 'APROBADA'
+          ? 'Publicación aprobada exitosamente'
+          : 'Publicación rechazada exitosamente',
+      publicacion: actualizada,
+    };
+  }
+
+  async obtenerMias(user: { id: string; tipo: string }) {
+    return this.prisma.mascotaPerdida.findMany({
+      where:
+        user.tipo === 'ONG'
+          ? { organizacionId: user.id }
+          : { usuarioId: user.id },
+      orderBy: { creado_en: 'desc' },
+      include: INCLUDE_AUTOR,
+    });
   }
 
   async actualizarEstado(
