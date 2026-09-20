@@ -296,6 +296,7 @@ model MascotaPerdida {
   imagenUrl      String?
   recompensa     String?
   estado         EstadoPerdida  @default(PERDIDO)
+  moderacion     EstadoModeracion @default(PENDIENTE)
   fechaPerdido   DateTime       @default(now())
   creado_en      DateTime       @default(now())
 
@@ -305,10 +306,17 @@ model MascotaPerdida {
   organizacionId String?
 
   @@index([estado, creado_en])
+  @@index([moderacion, creado_en])
 }
 
 enum EstadoPerdida {
   PERDIDO
   ENCONTRADO
   REUNIDO
+}
+
+enum EstadoModeracion {
+  PENDIENTE
+  APROBADA
+  RECHAZADA
 }
