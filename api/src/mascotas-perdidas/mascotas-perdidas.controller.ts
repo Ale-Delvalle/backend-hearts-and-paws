@@ -26,6 +26,10 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { MascotasPerdidasService } from './mascotas-perdidas.service';
 import { CrearMascotaPerdidaDto } from './dto/crear-mascota-perdida.dto';
 import { FiltroMascotasPerdidasDto } from './dto/filtro-mascotas-perdidas.dto';
+import { ModerarMascotaPerdidaDto } from './dto/moderar-mascota-perdida.dto';
+import { RolesGuard } from 'src/autenticacion/guards/roles.guard';
+import { AuthOpcionalGuard } from 'src/autenticacion/guards/auth-opcional.guard';
+import { Roles } from 'src/autenticacion/decoradores/roles.decorator';
 import { AuthenticateRequest } from 'src/common/interfaces/authenticated-request.interface';
 import { EstadoPerdida } from '@prisma/client';
 
@@ -41,13 +45,50 @@ export class MascotasPerdidasController {
     return this.mascotasPerdidasService.obtenerTodas(filtros);
   }
 
+  @UseGuards(AuthGuard(['jwt-local', 'supabase']), RolesGuard)
+  @Roles('ADMIN')
+  @Get('pendientes')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Listar publicaciones pendientes de moderación (solo admin)' })
+  @ApiResponse({ status: 200, description: 'Listado paginado de publicaciones pendientes.' })
+  @ApiResponse({ status: 403, description: 'Requiere rol ADMIN.' })
+  obtenerPendientes(@Query() filtros: FiltroMascotasPerdidasDto) {
+    return this.mascotasPerdidasService.obtenerPendientes(filtros);
+  }
+
+  @UseGuards(AuthGuard(['jwt-local', 'supabase']))
+  @Get('mias')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Listar mis publicaciones con su estado de moderación' })
+  @ApiResponse({ status: 200, description: 'Publicaciones del usuario u ONG autenticado.' })
+  obtenerMias(@Req() req: AuthenticateRequest) {
+    return this.mascotasPerdidasService.obtenerMias(req.user);
+  }
+
+  @UseGuards(AuthOpcionalGuard)
   @Get(':id')
-  @ApiOperation({ summary: 'Obtener detalle de una mascota perdida por ID (Público)' })
+  @ApiOperation({
+    summary:
+      'Obtener detalle de una mascota perdida por ID (Público si está aprobada; autor y admin también ven las no aprobadas)',
+  })
   @ApiParam({ name: 'id', required: true, description: 'ID de la publicación' })
   @ApiResponse({ status: 200, description: 'Datos completos de la publicación.' })
   @ApiResponse({ status: 404, description: 'Publicación no encontrada.' })
-  obtenerPorId(@Param('id') id: string) {
-    return this.mascotasPerdidasService.obtenerPorId(id);
+  obtenerPorId(@Param('id') id: string, @Req() req: AuthenticateRequest) {
+    return this.mascotasPerdidasService.obtenerPorId(id, req.user ?? undefined);
+  }
+
+  @UseGuards(AuthGuard(['jwt-local', 'supabase']), RolesGuard)
+  @Roles('ADMIN')
+  @Patch(':id/moderacion')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Aprobar o rechazar una publicación (solo admin)' })
+  @ApiParam({ name: 'id', required: true, description: 'ID de la publicación' })
+  @ApiResponse({ status: 200, description: 'Moderación aplicada correctamente.' })
+  @ApiResponse({ status: 403, description: 'Requiere rol ADMIN.' })
+  @ApiResponse({ status: 404, description: 'Publicación no encontrada.' })
+  moderar(@Param('id') id: string, @Body() dto: ModerarMascotaPerdidaDto) {
+    return this.mascotasPerdidasService.moderar(id, dto);
   }
 
   @UseGuards(AuthGuard(['jwt-local', 'supabase']))
