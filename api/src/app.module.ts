@@ -18,6 +18,7 @@ import { SolicitudAdoptarModule } from './solicitud-adoptar/solicitud-adoptar.mo
 import { DonacionModule } from './donacion/donacion.module';
 import { GoogleVisionModule } from './google-vision/google-vision.module';
 import { MascotasPerdidasModule } from './mascotas-perdidas/mascotas-perdidas.module';
+import { InsigniasModule } from './insignias/insignias.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { MascotasPerdidasModule } from './mascotas-perdidas/mascotas-perdidas.mo
     DonacionModule,
     GoogleVisionModule,
     MascotasPerdidasModule,
+    InsigniasModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],
