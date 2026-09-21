@@ -37,14 +37,24 @@ export class UsuariosService {
           direccion: true,
           ciudad: true,
           pais: true,
+          genero: true,
           creado_en: true,
+          insignias: {
+            select: {
+              id: true,
+              tipo: true,
+              otorgada_en: true,
+              organizacion: { select: { id: true, nombre: true } },
+            },
+            orderBy: { otorgada_en: 'asc' },
+          },
         },
       });
-  
+
       if (!usuario) {
         throw new NotFoundException(`No se encontró el usuario con Id ${id}`);
       }
-  
+
       return usuario;
     }
 
@@ -108,6 +118,7 @@ export class UsuariosService {
       if (datosDeUsuario.direccion) data.direccion = datosDeUsuario.direccion;
       if (datosDeUsuario.ciudad) data.ciudad = datosDeUsuario.ciudad;
       if (datosDeUsuario.pais) data.pais = datosDeUsuario.pais;
+      if (datosDeUsuario.genero) data.genero = datosDeUsuario.genero;
 
       await this.prisma.usuario.update({
         where: { id },
@@ -124,6 +135,7 @@ export class UsuariosService {
           direccion: true,
           ciudad: true,
           pais: true,
+          genero: true,
           rol: true,
         },
       });
