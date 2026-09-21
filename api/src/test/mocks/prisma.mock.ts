@@ -42,6 +42,13 @@ export const prismaMock: jest.Mocked<PrismaService> = {
     findUnique: jest.fn(),
   } as any,
 
+  insigniaUsuario: {
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+    upsert: jest.fn(),
+    delete: jest.fn(),
+  } as any,
+
   mascotaPerdida: {
     findMany: jest.fn(),
     findUnique: jest.fn(),
