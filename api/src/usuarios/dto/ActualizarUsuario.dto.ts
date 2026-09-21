@@ -13,7 +13,7 @@ import { Transform } from "class-transformer";
 const xss = require('xss');
 import { Trim } from "src/autenticacion/decoradores/trim.decorator";
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { Rol } from "@prisma/client";
+import { Genero, Rol } from "@prisma/client";
 
 export class ActualizarUsuarioDTO {
   @IsOptional()
@@ -98,6 +98,15 @@ export class ActualizarUsuarioDTO {
   })
   @MaxLength(25)
   pais?: string;
+
+  @IsOptional()
+  @ApiPropertyOptional({
+    enum: Genero,
+    example: 'FEMENINO',
+    description: 'Género del usuario (MASCULINO o FEMENINO).',
+  })
+  @IsEnum(Genero)
+  genero?: Genero;
 
   @IsOptional()
   @IsEnum(Rol)
