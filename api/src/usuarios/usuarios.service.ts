@@ -23,6 +23,36 @@ export class UsuariosService {
     });
   }
 
+    async obtenerPerfilPublico(id: string) {
+      const usuario = await this.prisma.usuario.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          nombre: true,
+          imagenPerfil: true,
+          ciudad: true,
+          pais: true,
+          genero: true,
+          creado_en: true,
+          insignias: {
+            select: {
+              id: true,
+              tipo: true,
+              otorgada_en: true,
+              organizacion: { select: { id: true, nombre: true } },
+            },
+            orderBy: { otorgada_en: 'asc' },
+          },
+        },
+      });
+
+      if (!usuario) {
+        throw new NotFoundException(`No se encontró el usuario con Id ${id}`);
+      }
+
+      return usuario;
+    }
+
     async usuarioPorId(id: string) {
 
       const usuario = await this.prisma.usuario.findUnique({
