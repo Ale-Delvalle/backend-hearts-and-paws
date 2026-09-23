@@ -124,6 +124,15 @@ export class UsuariosController {
     return await this.usuariosService.usuarioPorId(id);
   }
 
+  @Get(':id/perfil')
+  @ApiOperation({ summary: 'Obtener el perfil público de un usuario (sin datos de contacto)' })
+  @ApiParam({ name: 'id', type: 'string', description: 'UUID del usuario' })
+  @ApiResponse({ status: 200, description: 'Perfil público del usuario.' })
+  @ApiResponse({ status: 404, description: 'Usuario no encontrado.' })
+  async obtenerPerfilPublico(@Param('id', ParseUUIDPipe) id: string) {
+    return await this.usuariosService.obtenerPerfilPublico(id);
+  }
+
   @UseGuards(AuthGuard(['jwt-local', 'supabase']))
   @Get('favoritos/casos')
   @ApiOperation({ summary: 'Obtener todos los casos favoritos del usuario autenticado' })
