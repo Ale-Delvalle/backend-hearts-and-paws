@@ -70,6 +70,39 @@ describe('UsuariosService', () => {
     });
   });
 
+  describe('obtenerPerfilPublico', () => {
+    it('devuelve el perfil si el usuario existe, sin pedir datos de contacto', async () => {
+      const usuarioPublico = { id: '1', nombre: 'Juan', imagenPerfil: null, ciudad: 'La Plata' };
+      mockPrisma.usuario.findUnique.mockResolvedValue(usuarioPublico);
+
+      const result = await service.obtenerPerfilPublico('1');
+
+      expect(result).toEqual(usuarioPublico);
+
+      const select = mockPrisma.usuario.findUnique.mock.calls[0][0].select;
+      expect(select).toMatchObject({
+        id: true,
+        nombre: true,
+        imagenPerfil: true,
+        ciudad: true,
+        pais: true,
+        genero: true,
+        creado_en: true,
+      });
+      expect(select).not.toHaveProperty('email');
+      expect(select).not.toHaveProperty('telefono');
+      expect(select).not.toHaveProperty('direccion');
+      expect(select).not.toHaveProperty('rol');
+      expect(select).not.toHaveProperty('contrasena');
+    });
+
+    it('lanza 404 si el usuario no existe', async () => {
+      mockPrisma.usuario.findUnique.mockResolvedValue(null);
+
+      await expect(service.obtenerPerfilPublico('invalido')).rejects.toThrow(NotFoundException);
+    });
+  });
+
   describe('usuarioPorId', () => {
     it('debería retornar el usuario si existe', async () => {
       const usuario = { id: '1', nombre: 'Juan' };
