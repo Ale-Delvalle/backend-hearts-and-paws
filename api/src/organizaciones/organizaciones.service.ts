@@ -1,10 +1,16 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UpdateOrganizacioneDto } from './dto/update-organizacione.dto';
+import { OtorgarReconocimientoDto } from './dto/otorgar-reconocimiento.dto';
 import { EstadoOrganizacion, EstadoMascota, EstadoCasoAdopcion, EstadoCasoDonacion, Prisma } from '@prisma/client';
 import { MailerService } from 'src/shared/email/email-server.service';
 import { Response } from 'express';
 import axios from 'axios';
+
+interface AutorReconocimiento {
+  id: string;
+  tipo: string;
+}
 
 @Injectable()
 export class OrganizacionesService {
@@ -75,7 +81,7 @@ export class OrganizacionesService {
       throw new NotFoundException('Organización no encontrada');
     }
 
-    const [mascotasActivas, casosPublicados] = await Promise.all([
+    const [mascotasActivas, casosPublicados, totalReconocimientos] = await Promise.all([
       this.prisma.mascota.count({
         where: {
           organizacionId: id,
@@ -85,6 +91,9 @@ export class OrganizacionesService {
       this.prisma.caso.count({
         where: { ongId: id },
       }),
+      this.prisma.reconocimientoOng.count({
+        where: { organizacionId: id },
+      }),
     ]);
 
     const { estado, ...datosPublicos } = organizacion;
@@ -93,7 +102,68 @@ export class OrganizacionesService {
       ...datosPublicos,
       mascotasActivas,
       casosPublicados,
+      totalReconocimientos,
     };
+  }
+
+  private whereAutorReconocimiento(organizacionId: string, autor: AutorReconocimiento) {
+    return autor.tipo === 'ONG'
+      ? { organizacionId, autorOrganizacionId: autor.id }
+      : { organizacionId, autorUsuarioId: autor.id };
+  }
+
+  async otorgarReconocimiento(organizacionId: string, autor: AutorReconocimiento, dto: OtorgarReconocimientoDto) {
+    if (autor.tipo === 'ONG' && autor.id === organizacionId) {
+      throw new ForbiddenException('No podés reconocer a tu propia organización.');
+    }
+
+    const organizacion = await this.prisma.organizacion.findUnique({
+      where: { id: organizacionId },
+      select: { estado: true },
+    });
+
+    if (!organizacion || organizacion.estado !== EstadoOrganizacion.APROBADA) {
+      throw new NotFoundException('Organización no encontrada');
+    }
+
+    const datosAutor =
+      autor.tipo === 'ONG'
+        ? { autorOrganizacionId: autor.id }
+        : { autorUsuarioId: autor.id };
+
+    await this.prisma.reconocimientoOng.upsert({
+      where: {
+        // El nombre del índice compuesto lo genera Prisma uniendo los campos del @@unique.
+        ...(autor.tipo === 'ONG'
+          ? { organizacionId_autorOrganizacionId: { organizacionId, autorOrganizacionId: autor.id } }
+          : { organizacionId_autorUsuarioId: { organizacionId, autorUsuarioId: autor.id } }),
+      } as Prisma.ReconocimientoOngWhereUniqueInput,
+      update: { mensaje: dto.mensaje },
+      create: { organizacionId, mensaje: dto.mensaje, ...datosAutor },
+    });
+
+    return { ok: true, mensaje: 'Reconocimiento otorgado exitosamente' };
+  }
+
+  async revocarReconocimiento(organizacionId: string, autor: AutorReconocimiento) {
+    await this.prisma.reconocimientoOng.deleteMany({
+      where: this.whereAutorReconocimiento(organizacionId, autor),
+    });
+
+    return { ok: true, mensaje: 'Reconocimiento revocado correctamente' };
+  }
+
+  async miEstadoReconocimiento(organizacionId: string, autor?: AutorReconocimiento) {
+    if (!autor) {
+      return { yaReconocida: false };
+    }
+
+    const existente = await this.prisma.reconocimientoOng.findFirst({
+      where: this.whereAutorReconocimiento(organizacionId, autor),
+      select: { id: true },
+    });
+
+    return { yaReconocida: !!existente };
   }
 
   async obtenerTimeline(id: string, page: number, limit: number){
