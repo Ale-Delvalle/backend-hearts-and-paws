@@ -1,13 +1,16 @@
-import { Controller, Post, Param, UseInterceptors, UploadedFile, Body, Get, Patch, UseGuards, Req, ParseUUIDPipe, Res, Query, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Delete, Param, UseInterceptors, UploadedFile, Body, Get, Patch, UseGuards, Req, ParseUUIDPipe, Res, Query, BadRequestException } from '@nestjs/common';
 import { OrganizacionesService } from './organizaciones.service';
 import { AnyFilesInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import { filtroArchivoImagen, limits } from 'src/cloudinary/file.interceptor';
 import { UpdateOrganizacioneDto } from './dto/update-organizacione.dto';
+import { OtorgarReconocimientoDto } from './dto/otorgar-reconocimiento.dto';
 import { EstadoOrganizacion, EstadoMascota } from '@prisma/client';
 import { RolesGuard } from 'src/autenticacion/guards/roles.guard';
 import { Roles } from 'src/autenticacion/decoradores/roles.decorator';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { JwtAutCookiesGuardia } from 'src/autenticacion/guards/jwtAut.guardia';
+import { AuthOpcionalGuard } from 'src/autenticacion/guards/auth-opcional.guard';
+import { AuthenticateRequest } from 'src/common/interfaces/authenticated-request.interface';
 import { ApiOperation, ApiResponse, ApiTags, ApiBearerAuth, ApiParam, ApiConsumes, ApiBody, ApiQuery } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { Response } from 'express';
@@ -136,6 +139,41 @@ export class OrganizacionesController {
     const pageNum = Math.max(parseInt(page ?? '1', 10) || 1, 1);
     const limitNum = Math.min(Math.max(parseInt(limit ?? '12', 10) || 12, 1), 50);
     return this.organizacionesService.obtenerMascotas(id, estado as EstadoMascota | undefined, pageNum, limitNum);
+  }
+
+  @UseGuards(AuthOpcionalGuard)
+  @Get(':id/reconocimientos/mi-estado')
+  @ApiOperation({ summary: 'Saber si el visitante autenticado ya reconoció a esta organización' })
+  @ApiParam({ name: 'id', type: 'string', description: 'UUID de la organización' })
+  @ApiResponse({ status: 200, description: 'Estado del reconocimiento para el visitante actual.' })
+  async miEstadoReconocimiento(@Param('id', ParseUUIDPipe) id: string, @Req() req: AuthenticateRequest) {
+    return this.organizacionesService.miEstadoReconocimiento(id, req.user ?? undefined);
+  }
+
+  @UseGuards(AuthGuard(['jwt-local', 'supabase']))
+  @Post(':id/reconocimientos')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Reconocer a una organización por su excelencia (cualquier usuario u ONG autenticado)' })
+  @ApiParam({ name: 'id', type: 'string', description: 'UUID de la organización' })
+  @ApiResponse({ status: 201, description: 'Reconocimiento otorgado.' })
+  @ApiResponse({ status: 403, description: 'Una organización no puede reconocerse a sí misma.' })
+  @ApiResponse({ status: 404, description: 'Organización no encontrada.' })
+  async otorgarReconocimiento(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: OtorgarReconocimientoDto,
+    @Req() req: AuthenticateRequest,
+  ) {
+    return this.organizacionesService.otorgarReconocimiento(id, req.user, dto);
+  }
+
+  @UseGuards(AuthGuard(['jwt-local', 'supabase']))
+  @Delete(':id/reconocimientos')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Revocar mi reconocimiento a esta organización' })
+  @ApiParam({ name: 'id', type: 'string', description: 'UUID de la organización' })
+  @ApiResponse({ status: 200, description: 'Reconocimiento revocado.' })
+  async revocarReconocimiento(@Param('id', ParseUUIDPipe) id: string, @Req() req: AuthenticateRequest) {
+    return this.organizacionesService.revocarReconocimiento(id, req.user);
   }
 
   @UseGuards(JwtAutCookiesGuardia)
