@@ -6,6 +6,7 @@ import { BadRequestException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from 'src/autenticacion/guards/roles.guard';
 import { JwtAutCookiesGuardia } from 'src/autenticacion/guards/jwtAut.guardia';
+import { AuthOpcionalGuard } from 'src/autenticacion/guards/auth-opcional.guard';
 
 describe('OrganizacionesController', () => {
   let controller: OrganizacionesController;
@@ -17,6 +18,9 @@ describe('OrganizacionesController', () => {
       obtenerTimeline: jest.fn(),
       obtenerCasosCerrados: jest.fn(),
       obtenerMascotas: jest.fn(),
+      otorgarReconocimiento: jest.fn(),
+      revocarReconocimiento: jest.fn(),
+      miEstadoReconocimiento: jest.fn(),
     };
 
     const mockCloudinaryService = {};
@@ -35,6 +39,8 @@ describe('OrganizacionesController', () => {
       .overrideGuard(RolesGuard)
       .useValue({ canActivate: jest.fn(() => true) })
       .overrideGuard(JwtAutCookiesGuardia)
+      .useValue({ canActivate: jest.fn(() => true) })
+      .overrideGuard(AuthOpcionalGuard)
       .useValue({ canActivate: jest.fn(() => true) })
       .compile();
 
@@ -126,6 +132,44 @@ describe('OrganizacionesController', () => {
         controller.obtenerMascotas('1', 'ESTADO_INVENTADO', undefined, undefined),
       ).rejects.toThrow(BadRequestException);
       expect(service.obtenerMascotas).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('reconocimientos', () => {
+    const reqUsuario = { user: { id: 'u-1', tipo: 'USUARIO' } } as any;
+
+    it('otorgarReconocimiento delega en el service con el usuario autenticado', async () => {
+      service.otorgarReconocimiento.mockResolvedValue({ ok: true });
+
+      await controller.otorgarReconocimiento('ong-1', { mensaje: 'Genial' }, reqUsuario);
+
+      expect(service.otorgarReconocimiento).toHaveBeenCalledWith('ong-1', reqUsuario.user, {
+        mensaje: 'Genial',
+      });
+    });
+
+    it('revocarReconocimiento delega en el service con el usuario autenticado', async () => {
+      service.revocarReconocimiento.mockResolvedValue({ ok: true });
+
+      await controller.revocarReconocimiento('ong-1', reqUsuario);
+
+      expect(service.revocarReconocimiento).toHaveBeenCalledWith('ong-1', reqUsuario.user);
+    });
+
+    it('miEstadoReconocimiento delega en el service con el usuario si está autenticado', async () => {
+      service.miEstadoReconocimiento.mockResolvedValue({ yaReconocida: true });
+
+      await controller.miEstadoReconocimiento('ong-1', reqUsuario);
+
+      expect(service.miEstadoReconocimiento).toHaveBeenCalledWith('ong-1', reqUsuario.user);
+    });
+
+    it('miEstadoReconocimiento pasa undefined si no hay sesión', async () => {
+      service.miEstadoReconocimiento.mockResolvedValue({ yaReconocida: false });
+
+      await controller.miEstadoReconocimiento('ong-1', { user: null } as any);
+
+      expect(service.miEstadoReconocimiento).toHaveBeenCalledWith('ong-1', undefined);
     });
   });
 });
