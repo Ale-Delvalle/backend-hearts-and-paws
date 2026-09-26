@@ -31,6 +31,7 @@ model Usuario {
 
   // Relaciones
   insignias InsigniaUsuario[]
+  reconocimientosOtorgados ReconocimientoOng[]
   favoritos Favorito[]
   donaciones Donacion[]
   solicitudesAdopcion SolicitudDeAdopcion[]
@@ -72,6 +73,26 @@ model Organizacion {
   mensajes     Mensaje[]    @relation("OrgMensajes")
   mascotasPerdidas MascotaPerdida[]
   insigniasOtorgadas InsigniaUsuario[]
+  reconocimientosRecibidos ReconocimientoOng[] @relation("ReconocimientosRecibidos")
+  reconocimientosOtorgados ReconocimientoOng[] @relation("ReconocimientosOtorgados")
+}
+
+model ReconocimientoOng {
+  id          String   @id @default(uuid())
+  mensaje     String?
+  creado_en   DateTime @default(now())
+
+  organizacion   Organizacion @relation("ReconocimientosRecibidos", fields: [organizacionId], references: [id], onDelete: Cascade)
+  organizacionId String
+
+  autorUsuario        Usuario?      @relation(fields: [autorUsuarioId], references: [id], onDelete: Cascade)
+  autorUsuarioId      String?
+  autorOrganizacion   Organizacion? @relation("ReconocimientosOtorgados", fields: [autorOrganizacionId], references: [id], onDelete: Cascade)
+  autorOrganizacionId String?
+
+  @@unique([organizacionId, autorUsuarioId])
+  @@unique([organizacionId, autorOrganizacionId])
+  @@index([organizacionId])
 }
 
 enum Genero {
