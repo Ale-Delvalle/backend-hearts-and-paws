@@ -3,7 +3,7 @@ import { OrganizacionesService } from '../organizaciones.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { MailerService } from 'src/shared/email/email-server.service';
 import { EstadoOrganizacion } from '@prisma/client';
-import { NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 
 describe('OrganizacionesService', () => {
   let service: OrganizacionesService;
@@ -24,6 +24,12 @@ describe('OrganizacionesService', () => {
     caso: {
       count: jest.fn(),
       findMany: jest.fn(),
+    },
+    reconocimientoOng: {
+      count: jest.fn(),
+      findFirst: jest.fn(),
+      upsert: jest.fn(),
+      deleteMany: jest.fn(),
     },
   };
 
@@ -156,6 +162,7 @@ describe('OrganizacionesService', () => {
       mockPrisma.organizacion.findUnique.mockResolvedValue(orgAprobada);
       mockPrisma.mascota.count.mockResolvedValue(3);
       mockPrisma.caso.count.mockResolvedValue(5);
+      mockPrisma.reconocimientoOng.count.mockResolvedValue(7);
 
       const result = await service.obtenerPerfilPublico('1');
 
@@ -169,6 +176,7 @@ describe('OrganizacionesService', () => {
         creado_en: orgAprobada.creado_en,
         mascotasActivas: 3,
         casosPublicados: 5,
+        totalReconocimientos: 7,
       });
     });
 
@@ -306,6 +314,94 @@ describe('OrganizacionesService', () => {
 
       const result = await service.buscarPorEmail('ong@email.com');
       expect(result).toEqual(mockOrg);
+    });
+  });
+
+  describe('otorgarReconocimiento', () => {
+    const usuarioAutor = { id: 'u-1', tipo: 'USUARIO' };
+    const ongAutora = { id: 'ong-2', tipo: 'ONG' };
+
+    it('rechaza que una ONG se reconozca a sí misma', async () => {
+      await expect(
+        service.otorgarReconocimiento('ong-2', ongAutora, {}),
+      ).rejects.toThrow(ForbiddenException);
+      expect(mockPrisma.organizacion.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('lanza 404 si la organización no existe o no está aprobada', async () => {
+      mockPrisma.organizacion.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.otorgarReconocimiento('ong-1', usuarioAutor, {}),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockPrisma.reconocimientoOng.upsert).not.toHaveBeenCalled();
+    });
+
+    it('otorga el reconocimiento cuando el autor es un usuario', async () => {
+      mockPrisma.organizacion.findUnique.mockResolvedValue({ estado: EstadoOrganizacion.APROBADA });
+
+      await service.otorgarReconocimiento('ong-1', usuarioAutor, { mensaje: 'Genial' });
+
+      expect(mockPrisma.reconocimientoOng.upsert).toHaveBeenCalledWith({
+        where: { organizacionId_autorUsuarioId: { organizacionId: 'ong-1', autorUsuarioId: 'u-1' } },
+        update: { mensaje: 'Genial' },
+        create: { organizacionId: 'ong-1', mensaje: 'Genial', autorUsuarioId: 'u-1' },
+      });
+    });
+
+    it('otorga el reconocimiento cuando el autor es otra ONG', async () => {
+      mockPrisma.organizacion.findUnique.mockResolvedValue({ estado: EstadoOrganizacion.APROBADA });
+
+      await service.otorgarReconocimiento('ong-1', ongAutora, {});
+
+      expect(mockPrisma.reconocimientoOng.upsert).toHaveBeenCalledWith({
+        where: { organizacionId_autorOrganizacionId: { organizacionId: 'ong-1', autorOrganizacionId: 'ong-2' } },
+        update: { mensaje: undefined },
+        create: { organizacionId: 'ong-1', mensaje: undefined, autorOrganizacionId: 'ong-2' },
+      });
+    });
+  });
+
+  describe('revocarReconocimiento', () => {
+    it('borra el reconocimiento del usuario autenticado', async () => {
+      await service.revocarReconocimiento('ong-1', { id: 'u-1', tipo: 'USUARIO' });
+
+      expect(mockPrisma.reconocimientoOng.deleteMany).toHaveBeenCalledWith({
+        where: { organizacionId: 'ong-1', autorUsuarioId: 'u-1' },
+      });
+    });
+
+    it('borra el reconocimiento de la ONG autenticada', async () => {
+      await service.revocarReconocimiento('ong-1', { id: 'ong-2', tipo: 'ONG' });
+
+      expect(mockPrisma.reconocimientoOng.deleteMany).toHaveBeenCalledWith({
+        where: { organizacionId: 'ong-1', autorOrganizacionId: 'ong-2' },
+      });
+    });
+  });
+
+  describe('miEstadoReconocimiento', () => {
+    it('devuelve false si no hay visitante autenticado', async () => {
+      const result = await service.miEstadoReconocimiento('ong-1', undefined);
+
+      expect(result).toEqual({ yaReconocida: false });
+      expect(mockPrisma.reconocimientoOng.findFirst).not.toHaveBeenCalled();
+    });
+
+    it('devuelve true si el autor ya reconoció a la organización', async () => {
+      mockPrisma.reconocimientoOng.findFirst.mockResolvedValue({ id: 'r-1' });
+
+      const result = await service.miEstadoReconocimiento('ong-1', { id: 'u-1', tipo: 'USUARIO' });
+
+      expect(result).toEqual({ yaReconocida: true });
+    });
+
+    it('devuelve false si el autor no la reconoció', async () => {
+      mockPrisma.reconocimientoOng.findFirst.mockResolvedValue(null);
+
+      const result = await service.miEstadoReconocimiento('ong-1', { id: 'u-1', tipo: 'USUARIO' });
+
+      expect(result).toEqual({ yaReconocida: false });
     });
   });
 });
