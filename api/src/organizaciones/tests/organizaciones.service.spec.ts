@@ -28,8 +28,10 @@ describe('OrganizacionesService', () => {
     reconocimientoOng: {
       count: jest.fn(),
       findFirst: jest.fn(),
+      findMany: jest.fn(),
       upsert: jest.fn(),
       deleteMany: jest.fn(),
+      updateMany: jest.fn(),
     },
   };
 
@@ -177,6 +179,9 @@ describe('OrganizacionesService', () => {
         mascotasActivas: 3,
         casosPublicados: 5,
         totalReconocimientos: 7,
+      });
+      expect(mockPrisma.reconocimientoOng.count).toHaveBeenCalledWith({
+        where: { organizacionId: '1', revocado_en: null },
       });
     });
 
@@ -344,9 +349,23 @@ describe('OrganizacionesService', () => {
 
       expect(mockPrisma.reconocimientoOng.upsert).toHaveBeenCalledWith({
         where: { organizacionId_autorUsuarioId: { organizacionId: 'ong-1', autorUsuarioId: 'u-1' } },
-        update: { mensaje: 'Genial' },
+        update: { mensaje: 'Genial', revocado_en: null, motivoRevocacion: null },
         create: { organizacionId: 'ong-1', mensaje: 'Genial', autorUsuarioId: 'u-1' },
       });
+    });
+
+    it('reactiva un reconocimiento previamente revocado', async () => {
+      mockPrisma.organizacion.findUnique.mockResolvedValue({ estado: EstadoOrganizacion.APROBADA });
+      mockPrisma.reconocimientoOng.upsert.mockResolvedValue({
+        id: 'r-1',
+        revocado_en: null,
+        motivoRevocacion: null,
+      });
+
+      await service.otorgarReconocimiento('ong-1', usuarioAutor, {});
+
+      const { update } = mockPrisma.reconocimientoOng.upsert.mock.calls[0][0];
+      expect(update).toEqual({ mensaje: undefined, revocado_en: null, motivoRevocacion: null });
     });
 
     it('otorga el reconocimiento cuando el autor es otra ONG', async () => {
@@ -356,26 +375,28 @@ describe('OrganizacionesService', () => {
 
       expect(mockPrisma.reconocimientoOng.upsert).toHaveBeenCalledWith({
         where: { organizacionId_autorOrganizacionId: { organizacionId: 'ong-1', autorOrganizacionId: 'ong-2' } },
-        update: { mensaje: undefined },
+        update: { mensaje: undefined, revocado_en: null, motivoRevocacion: null },
         create: { organizacionId: 'ong-1', mensaje: undefined, autorOrganizacionId: 'ong-2' },
       });
     });
   });
 
   describe('revocarReconocimiento', () => {
-    it('borra el reconocimiento del usuario autenticado', async () => {
-      await service.revocarReconocimiento('ong-1', { id: 'u-1', tipo: 'USUARIO' });
+    it('marca como revocado el reconocimiento del usuario autenticado, con el motivo', async () => {
+      await service.revocarReconocimiento('ong-1', { id: 'u-1', tipo: 'USUARIO' }, { motivo: 'Cambié de opinión' });
 
-      expect(mockPrisma.reconocimientoOng.deleteMany).toHaveBeenCalledWith({
-        where: { organizacionId: 'ong-1', autorUsuarioId: 'u-1' },
+      expect(mockPrisma.reconocimientoOng.updateMany).toHaveBeenCalledWith({
+        where: { organizacionId: 'ong-1', autorUsuarioId: 'u-1', revocado_en: null },
+        data: { revocado_en: expect.any(Date), motivoRevocacion: 'Cambié de opinión' },
       });
     });
 
-    it('borra el reconocimiento de la ONG autenticada', async () => {
-      await service.revocarReconocimiento('ong-1', { id: 'ong-2', tipo: 'ONG' });
+    it('marca como revocado el reconocimiento de la ONG autenticada, sin motivo', async () => {
+      await service.revocarReconocimiento('ong-1', { id: 'ong-2', tipo: 'ONG' }, {});
 
-      expect(mockPrisma.reconocimientoOng.deleteMany).toHaveBeenCalledWith({
-        where: { organizacionId: 'ong-1', autorOrganizacionId: 'ong-2' },
+      expect(mockPrisma.reconocimientoOng.updateMany).toHaveBeenCalledWith({
+        where: { organizacionId: 'ong-1', autorOrganizacionId: 'ong-2', revocado_en: null },
+        data: { revocado_en: expect.any(Date), motivoRevocacion: undefined },
       });
     });
   });
@@ -394,6 +415,10 @@ describe('OrganizacionesService', () => {
       const result = await service.miEstadoReconocimiento('ong-1', { id: 'u-1', tipo: 'USUARIO' });
 
       expect(result).toEqual({ yaReconocida: true });
+      expect(mockPrisma.reconocimientoOng.findFirst).toHaveBeenCalledWith({
+        where: { organizacionId: 'ong-1', autorUsuarioId: 'u-1', revocado_en: null },
+        select: { id: true },
+      });
     });
 
     it('devuelve false si el autor no la reconoció', async () => {
@@ -402,6 +427,55 @@ describe('OrganizacionesService', () => {
       const result = await service.miEstadoReconocimiento('ong-1', { id: 'u-1', tipo: 'USUARIO' });
 
       expect(result).toEqual({ yaReconocida: false });
+    });
+  });
+
+  describe('listarReconocimientosRecibidos', () => {
+    it('mapea el autor usuario u organización y conserva mensaje y motivo', async () => {
+      mockPrisma.reconocimientoOng.findMany.mockResolvedValue([
+        {
+          id: 'r-1',
+          mensaje: 'Genial',
+          creado_en: new Date('2026-01-01'),
+          revocado_en: null,
+          motivoRevocacion: null,
+          autorUsuario: { id: 'u-1', nombre: 'Ana' },
+          autorOrganizacion: null,
+        },
+        {
+          id: 'r-2',
+          mensaje: null,
+          creado_en: new Date('2026-01-02'),
+          revocado_en: new Date('2026-02-01'),
+          motivoRevocacion: 'Ya no coincide con mis valores',
+          autorUsuario: null,
+          autorOrganizacion: { id: 'ong-9', nombre: 'Otra ONG' },
+        },
+      ]);
+
+      const result = await service.listarReconocimientosRecibidos('ong-1');
+
+      expect(mockPrisma.reconocimientoOng.findMany.mock.calls[0][0].where).toEqual({
+        organizacionId: 'ong-1',
+      });
+      expect(result).toEqual([
+        {
+          id: 'r-1',
+          mensaje: 'Genial',
+          creado_en: new Date('2026-01-01'),
+          revocado_en: null,
+          motivoRevocacion: null,
+          otorgadoPor: { tipo: 'USUARIO', id: 'u-1', nombre: 'Ana' },
+        },
+        {
+          id: 'r-2',
+          mensaje: null,
+          creado_en: new Date('2026-01-02'),
+          revocado_en: new Date('2026-02-01'),
+          motivoRevocacion: 'Ya no coincide con mis valores',
+          otorgadoPor: { tipo: 'ONG', id: 'ong-9', nombre: 'Otra ONG' },
+        },
+      ]);
     });
   });
 });

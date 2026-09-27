@@ -21,6 +21,7 @@ describe('OrganizacionesController', () => {
       otorgarReconocimiento: jest.fn(),
       revocarReconocimiento: jest.fn(),
       miEstadoReconocimiento: jest.fn(),
+      listarReconocimientosRecibidos: jest.fn(),
     };
 
     const mockCloudinaryService = {};
@@ -148,12 +149,30 @@ describe('OrganizacionesController', () => {
       });
     });
 
-    it('revocarReconocimiento delega en el service con el usuario autenticado', async () => {
+    it('revocarReconocimiento delega en el service con el usuario autenticado y el motivo', async () => {
       service.revocarReconocimiento.mockResolvedValue({ ok: true });
 
-      await controller.revocarReconocimiento('ong-1', reqUsuario);
+      await controller.revocarReconocimiento('ong-1', { motivo: 'Ya no aplica' }, reqUsuario);
 
-      expect(service.revocarReconocimiento).toHaveBeenCalledWith('ong-1', reqUsuario.user);
+      expect(service.revocarReconocimiento).toHaveBeenCalledWith('ong-1', reqUsuario.user, {
+        motivo: 'Ya no aplica',
+      });
+    });
+
+    it('revocarReconocimiento funciona sin body', async () => {
+      service.revocarReconocimiento.mockResolvedValue({ ok: true });
+
+      await controller.revocarReconocimiento('ong-1', undefined as any, reqUsuario);
+
+      expect(service.revocarReconocimiento).toHaveBeenCalledWith('ong-1', reqUsuario.user, {});
+    });
+
+    it('misReconocimientos delega en el service con el id de la ong autenticada', async () => {
+      service.listarReconocimientosRecibidos.mockResolvedValue([]);
+
+      await controller.misReconocimientos(reqUsuario);
+
+      expect(service.listarReconocimientosRecibidos).toHaveBeenCalledWith('u-1');
     });
 
     it('miEstadoReconocimiento delega en el service con el usuario si está autenticado', async () => {
