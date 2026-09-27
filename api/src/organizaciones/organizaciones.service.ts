@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UpdateOrganizacioneDto } from './dto/update-organizacione.dto';
 import { OtorgarReconocimientoDto } from './dto/otorgar-reconocimiento.dto';
+import { RevocarReconocimientoDto } from './dto/revocar-reconocimiento.dto';
 import { EstadoOrganizacion, EstadoMascota, EstadoCasoAdopcion, EstadoCasoDonacion, Prisma } from '@prisma/client';
 import { MailerService } from 'src/shared/email/email-server.service';
 import { Response } from 'express';
@@ -92,7 +93,7 @@ export class OrganizacionesService {
         where: { ongId: id },
       }),
       this.prisma.reconocimientoOng.count({
-        where: { organizacionId: id },
+        where: { organizacionId: id, revocado_en: null },
       }),
     ]);
 
@@ -138,16 +139,17 @@ export class OrganizacionesService {
           ? { organizacionId_autorOrganizacionId: { organizacionId, autorOrganizacionId: autor.id } }
           : { organizacionId_autorUsuarioId: { organizacionId, autorUsuarioId: autor.id } }),
       } as Prisma.ReconocimientoOngWhereUniqueInput,
-      update: { mensaje: dto.mensaje },
+      update: { mensaje: dto.mensaje, revocado_en: null, motivoRevocacion: null },
       create: { organizacionId, mensaje: dto.mensaje, ...datosAutor },
     });
 
     return { ok: true, mensaje: 'Reconocimiento otorgado exitosamente' };
   }
 
-  async revocarReconocimiento(organizacionId: string, autor: AutorReconocimiento) {
-    await this.prisma.reconocimientoOng.deleteMany({
-      where: this.whereAutorReconocimiento(organizacionId, autor),
+  async revocarReconocimiento(organizacionId: string, autor: AutorReconocimiento, dto: RevocarReconocimientoDto) {
+    await this.prisma.reconocimientoOng.updateMany({
+      where: { ...this.whereAutorReconocimiento(organizacionId, autor), revocado_en: null },
+      data: { revocado_en: new Date(), motivoRevocacion: dto.motivo },
     });
 
     return { ok: true, mensaje: 'Reconocimiento revocado correctamente' };
@@ -159,11 +161,33 @@ export class OrganizacionesService {
     }
 
     const existente = await this.prisma.reconocimientoOng.findFirst({
-      where: this.whereAutorReconocimiento(organizacionId, autor),
+      where: { ...this.whereAutorReconocimiento(organizacionId, autor), revocado_en: null },
       select: { id: true },
     });
 
     return { yaReconocida: !!existente };
+  }
+
+  async listarReconocimientosRecibidos(organizacionId: string) {
+    const reconocimientos = await this.prisma.reconocimientoOng.findMany({
+      where: { organizacionId },
+      orderBy: { creado_en: 'desc' },
+      include: {
+        autorUsuario: { select: { id: true, nombre: true } },
+        autorOrganizacion: { select: { id: true, nombre: true } },
+      },
+    });
+
+    return reconocimientos.map((r) => ({
+      id: r.id,
+      mensaje: r.mensaje,
+      creado_en: r.creado_en,
+      revocado_en: r.revocado_en,
+      motivoRevocacion: r.motivoRevocacion,
+      otorgadoPor: r.autorUsuario
+        ? { tipo: 'USUARIO' as const, id: r.autorUsuario.id, nombre: r.autorUsuario.nombre }
+        : { tipo: 'ONG' as const, id: r.autorOrganizacion!.id, nombre: r.autorOrganizacion!.nombre },
+    }));
   }
 
   async obtenerTimeline(id: string, page: number, limit: number){
