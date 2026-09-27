@@ -4,6 +4,7 @@ import { AnyFilesInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import { filtroArchivoImagen, limits } from 'src/cloudinary/file.interceptor';
 import { UpdateOrganizacioneDto } from './dto/update-organizacione.dto';
 import { OtorgarReconocimientoDto } from './dto/otorgar-reconocimiento.dto';
+import { RevocarReconocimientoDto } from './dto/revocar-reconocimiento.dto';
 import { EstadoOrganizacion, EstadoMascota } from '@prisma/client';
 import { RolesGuard } from 'src/autenticacion/guards/roles.guard';
 import { Roles } from 'src/autenticacion/decoradores/roles.decorator';
@@ -171,9 +172,23 @@ export class OrganizacionesController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Revocar mi reconocimiento a esta organización' })
   @ApiParam({ name: 'id', type: 'string', description: 'UUID de la organización' })
+  @ApiBody({ type: RevocarReconocimientoDto, required: false })
   @ApiResponse({ status: 200, description: 'Reconocimiento revocado.' })
-  async revocarReconocimiento(@Param('id', ParseUUIDPipe) id: string, @Req() req: AuthenticateRequest) {
-    return this.organizacionesService.revocarReconocimiento(id, req.user);
+  async revocarReconocimiento(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: RevocarReconocimientoDto,
+    @Req() req: AuthenticateRequest,
+  ) {
+    return this.organizacionesService.revocarReconocimiento(id, req.user, dto ?? {});
+  }
+
+  @UseGuards(JwtAutCookiesGuardia)
+  @Get('mis-reconocimientos')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Listar los reconocimientos recibidos por mi organización, vigentes y revocados' })
+  @ApiResponse({ status: 200, description: 'Reconocimientos recibidos, con quién los otorgó y su feedback.' })
+  async misReconocimientos(@Req() req) {
+    return this.organizacionesService.listarReconocimientosRecibidos(req.user.id);
   }
 
   @UseGuards(JwtAutCookiesGuardia)
