@@ -78,9 +78,11 @@ model Organizacion {
 }
 
 model ReconocimientoOng {
-  id          String   @id @default(uuid())
-  mensaje     String?
-  creado_en   DateTime @default(now())
+  id               String    @id @default(uuid())
+  mensaje          String?
+  creado_en        DateTime  @default(now())
+  revocado_en      DateTime?
+  motivoRevocacion String?
 
   organizacion   Organizacion @relation("ReconocimientosRecibidos", fields: [organizacionId], references: [id], onDelete: Cascade)
   organizacionId String
