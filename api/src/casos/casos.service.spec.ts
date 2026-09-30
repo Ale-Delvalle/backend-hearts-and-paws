@@ -162,11 +162,11 @@ describe('CasosService', () => {
           mascota: {
             include: {
               imagenes: {
-                orderBy: { subida_en: 'desc'}, 
+                orderBy: { subida_en: 'desc'},
               },
             },
           },
-          ong: true
+          ong: { select: { id: true, nombre: true } },
         },
       });
     });
