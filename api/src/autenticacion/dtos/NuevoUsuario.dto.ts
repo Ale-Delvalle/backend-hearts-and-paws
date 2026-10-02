@@ -1,8 +1,9 @@
-import { IsEmail, IsString, IsStrongPassword, IsNotEmpty, MinLength, MaxLength, Matches } from "class-validator";
+import { IsEmail, IsEnum, IsString, IsStrongPassword, IsNotEmpty, MinLength, MaxLength, Matches } from "class-validator";
 import { Transform } from "class-transformer";
 const xss = require('xss');
 import { Trim } from "src/autenticacion/decoradores/trim.decorator";
 import { ApiProperty } from "@nestjs/swagger";
+import { Genero } from "@prisma/client";
 
 export class NuevoUsuarioDto {
 
@@ -111,4 +112,14 @@ export class NuevoUsuarioDto {
     message: 'Pais: solo se permiten letras y números',
 })
     pais: string;
+
+
+    @ApiProperty({
+    example: 'FEMENINO',
+    description: 'Sexo del usuario.',
+    enum: Genero,
+    })
+    @IsNotEmpty()
+    @IsEnum(Genero, { message: 'Sexo: debe ser FEMENINO o MASCULINO' })
+    genero: Genero;
 }
