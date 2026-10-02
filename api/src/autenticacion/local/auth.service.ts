@@ -53,6 +53,7 @@ export class ServicioAut {
         ciudad: true,
         pais: true,
         imagenPerfil: true,
+        genero: true,
         rol: true,
       }
     });
