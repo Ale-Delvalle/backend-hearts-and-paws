@@ -100,7 +100,7 @@ export class CasosService {
             },
           },
         },
-        ong: true,
+        ong: { select: { id: true, nombre: true } },
         donacion: true
       },
     });
@@ -355,7 +355,7 @@ async buscarCasosDeDonacionPorTipoDeMascota(tipo: string) {
           imagenes: true
         },
       },
-      ong: true,       // Incluye la organización
+      ong: { select: { id: true, nombre: true } },       // Incluye la organización
       donacion: true,  // Incluye los datos del subtipo donación
     },
   });
