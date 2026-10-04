@@ -1,6 +1,12 @@
-import { IsString, IsOptional, IsUUID, IsEnum, IsInt, IsNumber } from 'class-validator'
+import { IsString, IsOptional, IsUUID, IsEnum, IsInt, IsNumber, MaxLength } from 'class-validator'
+import { Transform } from 'class-transformer';
 import { EstadoAdopcion } from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
+import { Trim } from 'src/autenticacion/decoradores/trim.decorator';
+const xss = require('xss');
+
+const sanitizarTexto = () =>
+  Transform(({ value }) => (typeof value === 'string' ? xss(value) : value));
 
 export class SolicitudParaAdoptarDto {
 
@@ -26,6 +32,9 @@ export class SolicitudParaAdoptarDto {
     example: 'casa'
   })
   @IsString()
+  @Trim()
+  @sanitizarTexto()
+  @MaxLength(500)
   tipoVivienda: string;
 
   @ApiProperty({
@@ -58,6 +67,9 @@ export class SolicitudParaAdoptarDto {
   })
   @IsString()
   @IsOptional()
+  @Trim()
+  @sanitizarTexto()
+  @MaxLength(500)
   descripcionOtrasMascotas?: string;
 
   @ApiProperty({
@@ -65,6 +77,9 @@ export class SolicitudParaAdoptarDto {
     example: 'Sí'
   })
   @IsString()
+  @Trim()
+  @sanitizarTexto()
+  @MaxLength(500)
   cubrirGastos: string;
 
   @ApiProperty({
@@ -72,6 +87,9 @@ export class SolicitudParaAdoptarDto {
     example: 'Comida dos veces al día y paseos diarios'
   })
   @IsString()
+  @Trim()
+  @sanitizarTexto()
+  @MaxLength(500)
   darAlimentoCuidados: string;
 
   @ApiProperty({
@@ -79,6 +97,9 @@ export class SolicitudParaAdoptarDto {
     example: '2 horas al día de juego y paseo'
   })
   @IsString()
+  @Trim()
+  @sanitizarTexto()
+  @MaxLength(500)
   darAmorTiempoEj: string;
 
   @ApiProperty({
@@ -86,6 +107,9 @@ export class SolicitudParaAdoptarDto {
     example: 'Buscaría una nueva familia responsable'
   })
   @IsString()
+  @Trim()
+  @sanitizarTexto()
+  @MaxLength(500)
   devolucionDeMascota: string;
 
   @ApiProperty({
@@ -93,6 +117,9 @@ export class SolicitudParaAdoptarDto {
     example: 'Contactaría a la organización para ayuda'
   })
   @IsString()
+  @Trim()
+  @sanitizarTexto()
+  @MaxLength(1000)
   siNoPodesCuidarla: string;
 
   @ApiProperty({
@@ -100,5 +127,8 @@ export class SolicitudParaAdoptarDto {
     example: 'Me comprometo totalmente a cuidar de la mascota'
   })
   @IsString()
+  @Trim()
+  @sanitizarTexto()
+  @MaxLength(1000)
   declaracionFinal: string;
 }
