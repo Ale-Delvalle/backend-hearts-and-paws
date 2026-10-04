@@ -259,4 +259,38 @@ describe('SolicitudAdoptarService', () => {
       expect(result).toBe(false);
     });
   });
+
+  describe('obtenerResumenMisSolicitudes', () => {
+    it('devuelve mascotaId, casoAdopcionId y estado solo del usuario indicado', async () => {
+      prisma.solicitudDeAdopcion.findMany.mockResolvedValue([
+        {
+          casoAdopcionId: 'ca-1',
+          estado: 'PENDIENTE',
+          casoAdopcion: { caso: { mascotaId: 'masc-1' } },
+        },
+      ]);
+
+      const result = await service.obtenerResumenMisSolicitudes('user-1');
+
+      expect(prisma.solicitudDeAdopcion.findMany).toHaveBeenCalledWith({
+        where: { usuarioId: 'user-1' },
+        select: {
+          casoAdopcionId: true,
+          estado: true,
+          casoAdopcion: { select: { caso: { select: { mascotaId: true } } } },
+        },
+      });
+      expect(result).toEqual([
+        { casoAdopcionId: 'ca-1', mascotaId: 'masc-1', estado: 'PENDIENTE' },
+      ]);
+    });
+
+    it('devuelve una lista vacía si el usuario no tiene solicitudes', async () => {
+      prisma.solicitudDeAdopcion.findMany.mockResolvedValue([]);
+
+      const result = await service.obtenerResumenMisSolicitudes('user-1');
+
+      expect(result).toEqual([]);
+    });
+  });
 });
