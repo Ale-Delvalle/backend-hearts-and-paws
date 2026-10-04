@@ -319,6 +319,23 @@ async aceptarSolicitud(
     return { total };
   }
 
+  async obtenerResumenMisSolicitudes(usuarioId: string) {
+    const solicitudes = await this.prisma.solicitudDeAdopcion.findMany({
+      where: { usuarioId },
+      select: {
+        casoAdopcionId: true,
+        estado: true,
+        casoAdopcion: { select: { caso: { select: { mascotaId: true } } } },
+      },
+    });
+
+    return solicitudes.map((s) => ({
+      casoAdopcionId: s.casoAdopcionId,
+      mascotaId: s.casoAdopcion.caso.mascotaId,
+      estado: s.estado,
+    }));
+  }
+
   async existenciaDeSolicitud(usuarioId: string, casoAdopcionId: string) {
   const solicitud = await this.prisma.solicitudDeAdopcion.findFirst({
     where: {

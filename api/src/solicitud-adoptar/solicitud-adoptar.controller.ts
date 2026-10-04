@@ -148,6 +148,13 @@ export class SolicitudAdoptarController {
     return this.solicitudAdoptarService.borrarSolicitud(id);
   }
 
+  @Get('mis-solicitudes/ids')
+  @ApiOperation({ summary: 'Resumen liviano de mis solicitudes (mascota, caso y estado)' })
+  @ApiResponse({ status: 200, description: 'Lista de solicitudes del usuario autenticado' })
+  async obtenerResumenMisSolicitudes(@Req() req: AuthenticateRequest) {
+    return this.solicitudAdoptarService.obtenerResumenMisSolicitudes(req.user.id);
+  }
+
   @Get('yaExisteLaSolicitud/:idCasoAdopcion')
   async verifica(
   @Req() req: ExpressRequest & { user: User },
