@@ -84,6 +84,7 @@ export class CasosService {
           },
         },
         ong: { select: { id: true, nombre: true } },
+        adopcion: { select: { _count: { select: { solicitudes: true } } } },
       },
     });
 
@@ -249,7 +250,7 @@ async filtroParaAdopcionesPorMascota(tipo: string) {
       }
     },
     include: {
-      adopcion: true,
+      adopcion: { select: { id: true, estado: true, _count: { select: { solicitudes: true } } } },
       mascota: {
         include: {
           tipo: true,
