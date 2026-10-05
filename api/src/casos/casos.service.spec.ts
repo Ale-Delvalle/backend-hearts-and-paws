@@ -167,6 +167,7 @@ describe('CasosService', () => {
             },
           },
           ong: { select: { id: true, nombre: true } },
+          adopcion: { select: { _count: { select: { solicitudes: true } } } },
         },
       });
     });
